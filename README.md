@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="public/textures/mading_logo.png" alt="Logo Pesantren Modern Tgk. Chiek Oemar Diyan" width="130" />
+<img src="image/logo-od.png" alt="Logo Pesantren Modern Tgk. Chiek Oemar Diyan" width="130" />
 &nbsp;&nbsp;&nbsp;&nbsp;
-<img src="public/textures/logo-uin.png" alt="Logo UIN Ar-Raniry" width="115" />
+<img src="image/logo-uin.png" alt="Logo UIN Ar-Raniry" width="115" />
 &nbsp;&nbsp;&nbsp;&nbsp;
-<img src="public/textures/logo-ppkpm.png" alt="Logo PPKPM 26 UIN Ar-Raniry" width="130" />
+<img src="image/logo-ppkpm.png" alt="Logo PPKPM 26 UIN Ar-Raniry" width="130" />
 
 # Denah Digital 3D Interaktif & Spanduk Mading<br/>Pesantren Modern Tgk. Chiek Oemar Diyan
 
