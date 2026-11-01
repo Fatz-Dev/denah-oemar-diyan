@@ -1,0 +1,76 @@
+{
+  "version": 5,
+  "links": [],
+  "fileMap": [
+    [
+      "skill.md-for-installation",
+      "skill.md-for-installation.md"
+    ],
+    [
+      "readme",
+      "README.md"
+    ],
+    [
+      "revisi",
+      "revisi.md"
+    ],
+    [
+      "intruksi-prd",
+      "intruksi-prd.md"
+    ]
+  ],
+  "fileDisplayMap": [
+    [
+      "skill.md-for-installation.md",
+      "skill.md-for-installation"
+    ],
+    [
+      "README.md",
+      "Peta 3D Geocoding Interaktif Pesantren Tgk. Chiek Oemar Diyan"
+    ],
+    [
+      "revisi.md",
+      "revisi"
+    ],
+    [
+      "intruksi-prd.md",
+      "intruksi-prd"
+    ]
+  ],
+  "fileMetadataMap": [
+    [
+      "skill.md-for-installation.md",
+      {
+        "path": "/",
+        "tags": [],
+        "preview": "https://github.com/iart-ai/map-animation-skills.git https://github.com/deusyu/google-maps-skill.git ..."
+      }
+    ],
+    [
+      "README.md",
+      {
+        "path": "/",
+        "tags": [],
+        "preview": "Aplikasi visualisasi denah ilustrasi 3D berbasis Three.js + WebGL2 dengan sistem geocoding presisi W..."
+      }
+    ],
+    [
+      "intruksi-prd.md",
+      {
+        "path": "/",
+        "tags": [],
+        "preview": "bantu saya membuat Denah Ilustrasi (Hasil Edit dari Bahan Pemetaan yang saya berikan ) pemetaan lebi..."
+      }
+    ],
+    [
+      "revisi.md",
+      {
+        "path": "/",
+        "tags": [],
+        "preview": "revisi 1. mode satelite tidak bisa ditampilkan 2. peletakan gedung gedung tidak sesuai (seperti ada ..."
+      }
+    ]
+  ],
+  "tagMap": [],
+  "propertyMap": []
+}

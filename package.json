@@ -1,0 +1,21 @@
+{
+  "name": "denah-pesantren-oemar-diyan",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Peta 3D geocoding interaktif Pesantren Tgk. Chiek Oemar Diyan (Three.js + Vite)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "standalone": "vite build && python tools/generate_standalone.py",
+    "preview": "vite preview",
+    "georef": "python tools/georef.py",
+    "extract": "python tools/extract.py"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  }
+}

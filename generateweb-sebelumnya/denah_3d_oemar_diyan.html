@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Denah Pesantren Oemar Diyan — 3D Isometric & Geocoding</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #e6ebf0;
+            transition: background-color 0.35s ease;
+        }
+        body.dark-theme {
+            background-color: #111318;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            cursor: grab;
+        }
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+
+        /* Floating Building Name Labels (Exact match to preview (1).webp) */
+        .bldg-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            cursor: pointer;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+            text-shadow:
+                -1.5px -1.5px 0 #ffffff,
+                 1.5px -1.5px 0 #ffffff,
+                -1.5px  1.5px 0 #ffffff,
+                 1.5px  1.5px 0 #ffffff,
+                 0px    2px   4px rgba(255,255,255,0.95);
+            transition: transform 0.15s ease, color 0.15s ease;
+            z-index: 12;
+            letter-spacing: -0.01em;
+        }
+        .bldg-label:hover {
+            transform: translate(-50%, -60%) scale(1.08);
+            color: #0284c7;
+            z-index: 35;
+        }
+        body.dark-theme .bldg-label {
+            color: #f8fafc;
+            text-shadow:
+                -1.5px -1.5px 0 #0f172a,
+                 1.5px -1.5px 0 #0f172a,
+                -1.5px  1.5px 0 #0f172a,
+                 1.5px  1.5px 0 #0f172a,
+                 0px    2px   5px rgba(0,0,0,0.95);
+        }
+
+        /* Bottom-Right Action Dock Buttons (Exact match to preview) */
+        .dock-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.92);
+            color: #334155;
+            border: 1px solid rgba(203, 213, 225, 0.85);
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            backdrop-filter: blur(8px);
+        }
+        .dock-btn:hover {
+            background: #ffffff;
+            color: #0f172a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+        }
+        .dock-btn.active-view {
+            background: #e2e8f0;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+        .dock-btn-menu {
+            background: #1e293b;
+            color: #ffffff;
+            border-color: #1e293b;
+        }
+        .dock-btn-menu:hover {
+            background: #0f172a;
+            color: #ffffff;
+        }
+
+        body.dark-theme .dock-btn {
+            background: rgba(30, 34, 42, 0.92);
+            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+        body.dark-theme .dock-btn:hover {
+            background: rgba(45, 52, 64, 0.98);
+            color: #ffffff;
+        }
+        body.dark-theme .dock-btn.active-view {
+            background: rgba(59, 130, 246, 0.25);
+            border-color: rgba(96, 165, 250, 0.5);
+        }
+
+        /* Compass Widget Bottom-Left */
+        .compass-widget {
+            width: 46px;
+            height: 46px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(203, 213, 225, 0.85);
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+        }
+        .compass-widget:hover {
+            transform: scale(1.06);
+        }
+        body.dark-theme .compass-widget {
+            background: rgba(30, 34, 42, 0.94);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Popover Menu Panel */
+        .settings-panel {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(203, 213, 225, 0.9);
+            box-shadow: 0 18px 40px -10px rgba(15, 23, 42, 0.22);
+            color: #1e293b;
+        }
+        body.dark-theme .settings-panel {
+            background: rgba(24, 28, 36, 0.96);
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.7);
+            color: #f1f5f9;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Isometric WebGL Map Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Floating Building Text Labels Layer (Matches preview (1).webp) -->
+    <div id="labels-layer" class="fixed inset-0 pointer-events-none z-10"></div>
+
+    <!-- TOP-LEFT HEADER (Exact Match to Preview Images) -->
+    <div id="header-title" class="fixed top-4 left-5 z-30 pointer-events-none select-none">
+        <h1 id="main-title" class="text-[20px] sm:text-[22px] font-extrabold tracking-tight text-slate-900 leading-snug transition-colors">
+            Denah Pesantren Oemar Diyan
+        </h1>
+        <p id="sub-title" class="text-[12px] sm:text-[12.5px] font-medium text-slate-500 tracking-normal mt-0.5 transition-colors">
+            Krueng Lamkareung, Aceh Besar · 5.3992° U, 95.4358° T
+        </p>
+    </div>
+
+    <!-- BOTTOM-LEFT DYNAMIC 3D COMPASS (Exact Match to Preview Images) -->
+    <div class="fixed bottom-4 left-5 z-30">
+        <button id="compass-btn" onclick="resetNorthView()" class="compass-widget" title="Klik untuk arah Utara di Atas (Reset Orientasi)">
+            <div id="compass-dial" class="relative w-full h-full flex items-center justify-center">
+                <svg class="w-8 h-8" viewBox="0 0 36 36">
+                    <!-- North Blue Needle -->
+                    <polygon points="18,4 22,18 18,16 14,18" fill="#2563eb"/>
+                    <!-- South Grey Needle -->
+                    <polygon points="18,32 22,18 18,20 14,18" fill="#94a3b8"/>
+                    <circle cx="18" cy="18" r="2" fill="#ffffff" stroke="#475569" stroke-width="1"/>
+                </svg>
+                <span id="compass-u" class="absolute top-0.5 text-[8.5px] font-extrabold text-slate-800 dark:text-white tracking-tighter">U</span>
+            </div>
+        </button>
+    </div>
+
+    <!-- BOTTOM-RIGHT FLOATING ACTION DOCK (6 Square Buttons as in Preview) -->
+    <div class="fixed bottom-4 right-5 z-30 flex items-center gap-1.5">
+        <button id="btn-rot-ccw" onclick="rotateCameraStep(-1)" class="dock-btn" title="Putar Kiri / Sudut Pandang Utama (Utara)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h4V6"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.5 10a9 9 0 1 1 2.2 6.3"/>
+            </svg>
+        </button>
+        <button id="btn-rot-cw" onclick="rotateCameraStep(1)" class="dock-btn" title="Putar Kanan / Sudut Pandang Tenggara">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 10h-4V6"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20.5 10a9 9 0 1 0-2.2 6.3"/>
+            </svg>
+        </button>
+        <button onclick="zoomCameraStep(-32)" class="dock-btn" title="Perbesar (Zoom In)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/>
+            </svg>
+        </button>
+        <button onclick="zoomCameraStep(32)" class="dock-btn" title="Perkecil (Zoom Out)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
+            </svg>
+        </button>
+        <button onclick="toggleFullscreenOrFit()" class="dock-btn" title="Layar Penuh / Paskan Peta">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
+            </svg>
+        </button>
+        <button id="btn-menu" onclick="toggleSettingsMenu()" class="dock-btn dock-btn-menu" title="Pengaturan Tampilan, Label, Tema Gelap & Geocoding">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- POPOVER DRAWER MENU (Triggered by ☰ Button) -->
+    <div id="settings-drawer" class="fixed bottom-16 right-5 z-40 w-80 rounded-2xl settings-panel p-4 hidden transition-all duration-200">
+        <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-200/60 dark:border-slate-700/60">
+            <div>
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Pengaturan Peta 3D</h3>
+                <p class="text-[11px] opacity-70">Sesuaikan tampilan sesuai preview referensi</p>
+            </div>
+            <button onclick="toggleSettingsMenu()" class="p-1 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Preset Views Matching the 5 Reference Images -->
+        <div class="mb-3">
+            <label class="block text-[11px] font-bold mb-1.5 opacity-80">Preset Tampilan Referensi:</label>
+            <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+                <button onclick="applyReferencePreset('preview1')" class="px-2.5 py-2 rounded-xl border border-slate-300/80 dark:border-slate-700 hover:bg-emerald-500/10 text-left font-semibold flex items-center justify-between">
+                    <span>1. Label + Tenggara</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">Preview 1</span>
+                </button>
+                <button onclick="applyReferencePreset('previewMain')" class="px-2.5 py-2 rounded-xl border border-slate-300/80 dark:border-slate-700 hover:bg-emerald-500/10 text-left font-semibold flex items-center justify-between">
+                    <span>2. Utara + Rimbun</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-300">Preview 2</span>
+                </button>
+                <button onclick="applyReferencePreset('previewDark')" class="px-2.5 py-2 rounded-xl border border-slate-300/80 dark:border-slate-700 hover:bg-emerald-500/10 text-left font-semibold flex items-center justify-between">
+                    <span>3. Mode Gelap 3D</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-700 text-white">Preview 3</span>
+                </button>
+                <button onclick="applyReferencePreset('previewClean')" class="px-2.5 py-2 rounded-xl border border-slate-300/80 dark:border-slate-700 hover:bg-emerald-500/10 text-left font-semibold flex items-center justify-between">
+                    <span>4. Polos Tenggara</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300">Preview 4</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Layer Toggles -->
+        <div class="space-y-2 text-xs mb-3">
+            <div class="flex items-center justify-between py-1">
+                <span class="font-medium">Label Nama Gedung</span>
+                <button id="toggle-labels-btn" onclick="toggleLabels()" class="px-3 py-1 rounded-full font-bold text-[11px] bg-emerald-600 text-white">
+                    AKTIF
+                </button>
+            </div>
+            <div class="flex items-center justify-between py-1">
+                <span class="font-medium">Tema Peta (Terang / Gelap)</span>
+                <button id="toggle-theme-btn" onclick="toggleDarkTheme()" class="px-3 py-1 rounded-full font-bold text-[11px] bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white">
+                    TERANG
+                </button>
+            </div>
+            <div class="flex items-center justify-between py-1">
+                <span class="font-medium">Kepadatan Pohon & Palem</span>
+                <button id="toggle-trees-btn" onclick="cycleTreeDensity()" class="px-3 py-1 rounded-full font-bold text-[11px] bg-emerald-600/20 text-emerald-700 dark:text-emerald-300">
+                    SEDANG
+                </button>
+            </div>
+            <div class="flex items-center justify-between py-1">
+                <span class="font-medium">Tekstur Citra Satelit 3D</span>
+                <button id="toggle-sat-btn" onclick="toggleSatelliteSurface()" class="px-3 py-1 rounded-full font-bold text-[11px] bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white">
+                    NONAKTIF
+                </button>
+            </div>
+        </div>
+
+        <!-- Actions: Google Maps Drawer & Download PNG -->
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+            <button onclick="toggleGoogleMapsModal(true)" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.447-1.894L9 2m0 18l6-3m-6 3V2m6 15l5.447 2.724A2 2 0 0021 18.382V8.618a2 2 0 00-1.447-1.894L15 4m0 13V4m0 0L9 2"/></svg>
+                <span>Google Maps & 26 Titik</span>
+            </button>
+            <button onclick="downloadHighResPNG()" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Unduh PNG</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- FLOATING GEOCODING CARD (Appears when clicking any building or label) -->
+    <div id="geo-card" class="fixed top-16 left-5 z-40 w-80 rounded-2xl settings-panel p-4 hidden transition-all duration-200">
+        <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-2">
+                <span id="gc-id" class="px-2 py-0.5 rounded-md bg-red-600 text-white font-extrabold text-xs">#1</span>
+                <span id="gc-cat" class="text-[10.5px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Fasilitas</span>
+            </div>
+            <button onclick="closeGeoCard()" class="opacity-60 hover:opacity-100">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <h3 id="gc-name" class="text-sm font-extrabold mb-1">Masjid Baburrayyan</h3>
+        <p id="gc-desc" class="text-xs opacity-75 mb-2.5">Keterangan sesuai pemetaan resmi Pesantren Tgk. Chiek Oemar Diyan.</p>
+        <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-[11px] space-y-1 mb-2.5">
+            <div class="flex justify-between">
+                <span class="opacity-65">Koordinat GPS:</span>
+                <span id="gc-coords" class="mono font-semibold text-blue-600 dark:text-blue-400">5.40082° U, 95.43472° T</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="opacity-65">Plus Code:</span>
+                <span class="mono font-semibold">9CXP+H7 Kr. Lamkareung</span>
+            </div>
+        </div>
+        <a id="gc-gmaps" href="https://maps.app.goo.gl/tD1gUuhmkMMjJH9aA" target="_blank" rel="noopener noreferrer" class="w-full py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center gap-1.5 hover:opacity-90">
+            <span>Buka Titik di Google Maps</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
+    </div>
+
+    <!-- GOOGLE MAPS SATELLITE & 26 LOCATIONS DIRECTORY DRAWER -->
+    <div id="gmaps-modal" class="fixed inset-y-4 left-4 z-50 w-[360px] sm:w-[420px] max-w-[92vw] rounded-2xl settings-panel flex flex-col overflow-hidden hidden">
+        <div class="p-3.5 border-b border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between">
+            <div>
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400">Geocoding & Satelit Asli (Titik 1–26)</h3>
+                <p class="text-[11px] opacity-75">9CXP+H7 Krueng Lamkareung, Aceh Besar</p>
+            </div>
+            <button onclick="toggleGoogleMapsModal(false)" class="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <!-- Embedded Google Maps from user prompt -->
+        <div class="w-full h-48 bg-slate-900 relative shrink-0">
+            <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.112762892648!2d95.43339033672639!3d5.399786746366888!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3040404cd68670ed%3A0x43a5c74baf7249f5!2sTgk.%20Chiek%20Oemar%20Diyan%20Boarding%20School!5e0!3m2!1sid!2sid!4v1793512748822!5m2!1sid!2sid"
+                class="w-full h-full border-0"
+                allowfullscreen=""
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin">
+            </iframe>
+        </div>
+        <div class="p-2.5 border-b border-slate-200/70 dark:border-slate-700/70">
+            <input id="loc-search" type="text" oninput="filterLocationDirectory(this.value)" placeholder="Cari nomor (1-26) atau nama gedung..." class="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300/70 dark:border-slate-700 focus:outline-none">
+        </div>
+        <div id="loc-directory" class="flex-1 overflow-y-auto p-2.5 space-y-1 text-xs"></div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // 1. COMPLETE GEOCODED DATASET & LABELS (MATCHING ALL 26 POINTS & PREVIEW LABELS)
+        // ============================================================================
+        const LOCATIONS = [
+            { id: 1,  shortLabel: "Gerbang",            fullName: "1. Gerbang Utama", cat: "Akses Utama", lat: 5.401452, lng: 95.434851, x: -7,  z: -113, y: 7 },
+            { id: 2,  shortLabel: "Pos Satpam",         fullName: "2. Pos Satpam", cat: "Keamanan", lat: 5.401284, lng: 95.435048, x: 1,   z: -102, y: 5 },
+            { id: 3,  shortLabel: "MTsN",               fullName: "3. Sekolah MTsN", cat: "Gedung Sekolah", lat: 5.400951, lng: 95.435552, x: 25,  z: -83,  y: 9 },
+            { id: 4,  shortLabel: "Masjid",             fullName: "4. Masjid Baburrayyan", cat: "Ibadah", lat: 5.400825, lng: 95.434720, x: -13, z: -77,  y: 13 },
+            { id: 5,  shortLabel: "Food Court",         fullName: "5. Kantin dan Food Court", cat: "Konsumsi", lat: 5.400104, lng: 95.436054, x: 46,  z: -40,  y: 8 },
+            { id: 6,  shortLabel: "Asrama Putra",       fullName: "6. Asrama Putra (Utara)", cat: "Asrama Putra", lat: 5.400320, lng: 95.434422, x: -23, z: -50,  y: 12 },
+            { id: 7,  shortLabel: "Tugu Globe",         fullName: "7. Tugu Globe", cat: "Landmark", lat: 5.399682, lng: 95.436081, x: 50,  z: -17,  y: 7 },
+            { id: 8,  shortLabel: "Lapangan Basket",    fullName: "8. Lapangan Basket", cat: "Olahraga", lat: 5.399620, lng: 95.435780, x: 35,  z: -17,  y: 2 },
+            { id: 9,  shortLabel: "Asrama Putra",       fullName: "9. Asrama Putra (Barat)", cat: "Asrama Putra", lat: 5.399552, lng: 95.434150, x: -45, z: -12,  y: 10 },
+            { id: 10, shortLabel: "Sekolah GTS",        fullName: "10. Gedung Sekolah GTS", cat: "Gedung Sekolah", lat: 5.399250, lng: 95.436482, x: 67,  z: 4,    y: 11 },
+            { id: 11, shortLabel: "Lapangan Bola",      fullName: "11. Lapangan Bola / Lapangan Upacara", cat: "Olahraga & Upacara", lat: 5.399284, lng: 95.436120, x: 48,  z: 4,    y: 2 },
+            { id: 12, shortLabel: "Mess Ustad",         fullName: "12. Mess Ustad", cat: "Kediaman Staf", lat: 5.399251, lng: 95.435721, x: 25,  z: -1,   y: 7 },
+            { id: 13, shortLabel: "TU & Perpustakaan",  fullName: "13. Ruang TU MA & MTsN, Perpustakaan, R. Guru & Aula", cat: "Pusat Akademik", lat: 5.398920, lng: 95.435580, x: 18,  z: 18,   y: 9 },
+            { id: 14, shortLabel: "Administrasi",       fullName: "14. 2 Gedung Administrasi dan Ruang Turkey", cat: "Administrasi", lat: 5.398821, lng: 95.436050, x: 43,  z: 22,   y: 8 },
+            { id: 15, shortLabel: "Ruang Makan Putra",  fullName: "15. Ruang Makan Putra", cat: "Konsumsi", lat: 5.398850, lng: 95.436680, x: 74,  z: 25,   y: 7 },
+            { id: 16, shortLabel: "Gedung Turkey",      fullName: "16. Gedung Turkey / Gedung Sekolah", cat: "Gedung Sekolah", lat: 5.398422, lng: 95.435920, x: 35,  z: 43,   y: 8 },
+            { id: 17, shortLabel: "Musalla Putri",      fullName: "17. Musalla Putri", cat: "Ibadah", lat: 5.398580, lng: 95.435622, x: 17,  z: 33,   y: 8 },
+            { id: 18, shortLabel: "Asrama Putri",       fullName: "18. Asrama Putri (Tengah)", cat: "Asrama Putri", lat: 5.398150, lng: 95.435320, x: 6,   z: 52,   y: 9 },
+            { id: 19, shortLabel: "Dapur Putri",        fullName: "19. 2 Ruang Dapur dan Ruang Makan Putri", cat: "Konsumsi", lat: 5.397920, lng: 95.436052, x: 43,  z: 69,   y: 8 },
+            { id: 20, shortLabel: "Kantin Putri",       fullName: "20. Kantin Putri dan Mess Ustazah", cat: "Fasilitas Putri", lat: 5.397622, lng: 95.435250, x: -1,  z: 81,   y: 8 },
+            { id: 21, shortLabel: "Asrama Putri",       fullName: "21. Asrama Putri (Selatan)", cat: "Asrama Putri", lat: 5.397924, lng: 95.434820, x: -19, z: 70,   y: 9 },
+            { id: 22, shortLabel: "Aula STB",           fullName: "22. Aula STB", cat: "Aula Serbaguna", lat: 5.398152, lng: 95.434550, x: -33, z: 58,   y: 8 },
+            { id: 23, shortLabel: "Lapangan Pesantren", fullName: "23. Lapangan Pesantren", cat: "Lapangan Utama", lat: 5.398650, lng: 95.434450, x: -34, z: 29,   y: 2 },
+            { id: 24, shortLabel: "Bulu Tangkis",       fullName: "24. Lapangan Bulu Tangkis", cat: "Olahraga", lat: 5.400120, lng: 95.434620, x: -24, z: -38,  y: 2 },
+            { id: 25, shortLabel: "Lapangan Asrama",    fullName: "25. Lapangan Asrama Putra", cat: "Olahraga", lat: 5.399550, lng: 95.433920, x: -57, z: -12,  y: 2 },
+            { id: 26, shortLabel: "Lapangan Voli",      fullName: "26. Lapangan Voli", cat: "Olahraga", lat: 5.400720, lng: 95.434980, x: 0,   z: -73,  y: 2 }
+        ];
+
+        // Secondary sub-building labels so multi-building clusters match preview (1).webp
+        const EXTRA_LABELS = [
+            { id: 6,  shortLabel: "Asrama Putra",      x: -41, z: -48, y: 10 },
+            { id: 13, shortLabel: "TU & Perpustakaan", x: 14,  z: 16,  y: 9 },
+            { id: 18, shortLabel: "Asrama Putri",      x: 12,  z: 60,  y: 8 },
+            { id: 19, shortLabel: "Dapur Putri",       x: 45,  z: 62,  y: 8 },
+            { id: 19, shortLabel: "Dapur Putri",       x: 42,  z: 86,  y: 7 },
+            { id: 20, shortLabel: "Kantin Putri",      x: -1,  z: 95,  y: 7 },
+            { id: 21, shortLabel: "Asrama Putri",      x: -17, z: 65,  y: 9 }
+        ];
+
+        // ============================================================================
+        // 2. SCENE, CAMERA, MATERIALS & THEME STATE
+        // ============================================================================
+        let scene, camera, renderer, raycaster, mouse;
+        let interactiveMeshes = [];
+        let labelDomItems = [];
+        let mediumTreesGroup, denseTreesGroup;
+        let groundSurfaceMesh, slabWallMesh;
+        let defaultGroundMat, darkGroundMat, satelliteGroundMat;
+        let globeMesh;
+
+        let showLabels = true;
+        let isDarkTheme = false;
+        let treeDensityMode = 'medium'; // 'medium' (matches preview 1 & 4), 'dense' (matches preview.webp), 'none'
+        let isSatelliteSurface = false;
+
+        // Camera Orbit State — Starts in Preview (1).webp Southeast Labeled Isometric View!
+        const camState = {
+            theta: 2.38,            // Rotated SE angle matching preview (1).webp
+            phi: 0.92,              // Isometric pitch matching preview (1).webp
+            radius: 262,
+            target: new THREE.Vector3(2, 0, -2),
+            targetTheta: 2.38,
+            targetPhi: 0.92,
+            targetRadius: 262,
+            targetLookAt: new THREE.Vector3(2, 0, -2),
+            isDragging: false,
+            isPanning: false,
+            prevX: 0,
+            prevY: 0,
+            downX: 0,
+            downY: 0
+        };
+
+        window.onload = function () {
+            initScene();
+            buildDioramaSlabAndBoundaries();
+            buildRivers();
+            buildYellowRoads();
+            buildGreenFieldsAndCourts();
+            buildAll26Buildings();
+            buildTreesAndPalms();
+            initFloatingLabels();
+            populateDirectoryList('');
+            initControls();
+            updateActiveViewButtons();
+            animate();
+        };
+
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xe6ebf0); // Matches preview (1).webp studio sky
+
+            camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1, 1400);
+
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                preserveDrawingBuffer: true,
+                powerPreference: "high-performance"
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            container.appendChild(renderer.domElement);
+
+            // Balanced Architectural Illumination
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 0.82);
+            hemiLight.position.set(0, 220, 0);
+            scene.add(hemiLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfffdf8, 0.75);
+            sunLight.position.set(-95, 185, 110);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 30;
+            sunLight.shadow.camera.far = 480;
+            const d = 150;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            sunLight.shadow.bias = -0.0004;
+            scene.add(sunLight);
+
+            const backLight = new THREE.DirectionalLight(0xe2e8f0, 0.35);
+            backLight.position.set(110, 120, -110);
+            scene.add(backLight);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2(-999, -999);
+        }
+
+        // ============================================================================
+        // 3. THICK EXTRUDED ARCHITECTURAL DIORAMA SLAB, RED TRIM & BLACK ROAD
+        // ============================================================================
+        function createShapeFromCoords(pts) {
+            const shape = new THREE.Shape();
+            shape.moveTo(pts[0][0], -pts[0][1]);
+            for (let i = 1; i < pts.length; i++) {
+                shape.lineTo(pts[i][0], -pts[i][1]);
+            }
+            shape.closePath();
+            return shape;
+        }
+
+        function createSatelliteGroundTexture() {
+            // High-res procedural satellite + Esri World Imagery hybrid canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#2d4c2b';
+            ctx.fillRect(0, 0, 1024, 1024);
+            for (let i = 0; i < 25000; i++) {
+                ctx.fillStyle = i % 2 === 0 ? 'rgba(68, 108, 53, 0.35)' : 'rgba(34, 62, 30, 0.35)';
+                ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 4, 4);
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            // Also asynchronously load real Esri satellite tile for 5.3992, 95.4358 (Zoom 17)
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0, 1024, 1024);
+                tex.needsUpdate = true;
+            };
+            img.src = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/31819/50142";
+            tex.wrapS = THREE.ClampToEdgeWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            return tex;
+        }
+
+        function buildDioramaSlabAndBoundaries() {
+            // Outer Polygon including the Northeast Gate Spur (Exact match to Pemetaan.png & preview.webp)
+            const outerBoundaryPts = [
+                [-8, -118], [16, -133], [22, -133], [1, -116],
+                [37, -87], [53, -52], [70, -2], [85, 34], [99, 46],
+                [92, 74], [72, 110], [48, 132], [16, 125], [-12, 118],
+                [-46, 109], [-72, 108], [-90, 74], [-96, 48], [-93, 25],
+                [-77, -6], [-64, -24], [-44, -56], [-22, -98]
+            ];
+
+            // Black Perimeter Asphalt Road Polygon
+            const blackRoadPts = [
+                [-7, -116], [15, -130], [18, -130], [-1, -115],
+                [35, -85], [51, -50], [68, -1], [83, 35], [96, 47],
+                [89, 73], [70, 108], [47, 129], [16, 122], [-12, 115],
+                [-45, 106], [-69, 105], [-87, 72], [-93, 47], [-90, 25],
+                [-74, -5], [-61, -22], [-42, -54], [-20, -96]
+            ];
+
+            // Inner White/Dark Campus Surface Polygon
+            const innerCampusPts = [
+                [-5, -112], [32, -82], [47, -48], [64, 0], [79, 37], [90, 48],
+                [84, 71], [65, 104], [45, 125], [15, 119], [-12, 112],
+                [-44, 103], [-65, 102], [-82, 70], [-88, 46], [-85, 26],
+                [-70, -3], [-57, -20], [-38, -52], [-17, -93]
+            ];
+
+            // 1. Thick Grey Diorama Pedestal Slab (Depth = 6.5 units with stepped base like preview.webp)
+            const slabShape = createShapeFromCoords(outerBoundaryPts);
+            const slabGeo = new THREE.ExtrudeGeometry(slabShape, {
+                depth: 6.2,
+                bevelEnabled: true,
+                bevelThickness: 0.4,
+                bevelSize: 0.6,
+                bevelSegments: 2
+            });
+            slabGeo.rotateX(-Math.PI / 2);
+            slabWallMesh = new THREE.Mesh(
+                slabGeo,
+                new THREE.MeshLambertMaterial({ color: 0x888b90 })
+            );
+            slabWallMesh.position.y = -6.2;
+            slabWallMesh.receiveShadow = true;
+            slabWallMesh.castShadow = true;
+            scene.add(slabWallMesh);
+
+            // Darker bottom plinth skirt on the diorama slab
+            const skirtGeo = new THREE.ExtrudeGeometry(slabShape, { depth: 1.6, bevelEnabled: false });
+            skirtGeo.rotateX(-Math.PI / 2);
+            const skirtMesh = new THREE.Mesh(skirtGeo, new THREE.MeshLambertMaterial({ color: 0x64686e }));
+            skirtMesh.position.y = -6.6;
+            scene.add(skirtMesh);
+
+            // 2. Inner Off-White / Dark-Slate Top Surface Board
+            const innerShape = createShapeFromCoords(innerCampusPts);
+            const innerGeo = new THREE.ExtrudeGeometry(innerShape, { depth: 0.5, bevelEnabled: false });
+            innerGeo.rotateX(-Math.PI / 2);
+
+            defaultGroundMat = new THREE.MeshLambertMaterial({ color: 0xfaf8f2 });
+            darkGroundMat = new THREE.MeshLambertMaterial({ color: 0x1e222a });
+            satelliteGroundMat = new THREE.MeshLambertMaterial({ map: createSatelliteGroundTexture() });
+
+            groundSurfaceMesh = new THREE.Mesh(innerGeo, defaultGroundMat);
+            groundSurfaceMesh.position.y = -0.15;
+            groundSurfaceMesh.receiveShadow = true;
+            scene.add(groundSurfaceMesh);
+
+            // 3. Red Outer Boundary Line (#ef4444)
+            buildRibbon3D(outerBoundaryPts, 1.35, 0xef4444, 0.36, true);
+
+            // 4. Black Perimeter Road (#181a1f) + Crisp White Road Shoulders
+            buildRibbon3D(blackRoadPts, 3.2, 0xe2e8f0, 0.32, false);
+            buildRibbon3D(blackRoadPts, 2.35, 0x181b20, 0.38, false);
+        }
+
+        function buildRibbon3D(pts, width, hexColor, yPos, closed = false, height = 0.25) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshLambertMaterial({ color: hexColor });
+            const lenCount = closed ? pts.length : pts.length - 1;
+
+            for (let i = 0; i < lenCount; i++) {
+                const p1 = pts[i];
+                const p2 = pts[(i + 1) % pts.length];
+                const dx = p2[0] - p1[0];
+                const dz = p2[1] - p1[1];
+                const dist = Math.hypot(dx, dz);
+                if (dist < 0.1) continue;
+
+                const box = new THREE.Mesh(new THREE.BoxGeometry(width, height, dist + width * 0.25), mat);
+                box.position.set((p1[0] + p2[0]) / 2, yPos, (p1[1] + p2[1]) / 2);
+                box.rotation.y = Math.atan2(dx, dz);
+                box.receiveShadow = true;
+                group.add(box);
+
+                const joint = new THREE.Mesh(new THREE.CylinderGeometry(width * 0.5, width * 0.5, height, 12), mat);
+                joint.position.set(p1[0], yPos, p1[1]);
+                joint.receiveShadow = true;
+                group.add(joint);
+            }
+            scene.add(group);
+            return group;
+        }
+
+        // ============================================================================
+        // 4. TWO BROWN RIVERS / RAVINES (EXACT MATCH TO PREVIEW & PEMETAAN.PNG)
+        // ============================================================================
+        function buildRivers() {
+            const riverColor = 0x76664e;
+            const bankColor = 0x5c4f3c;
+
+            // East-Southeast Winding River
+            const eastRiverPts = [
+                [83, 35], [72, 40], [63, 52], [58, 72], [60, 96], [53, 113], [32, 125]
+            ];
+            // South-Southwest Arching River
+            const southRiverPts = [
+                [-50, 106], [-44, 94], [-34, 90], [-18, 97], [3, 112], [11, 120]
+            ];
+
+            buildRibbon3D(eastRiverPts, 7.6, bankColor, 0.28, false, 0.22);
+            buildRibbon3D(eastRiverPts, 6.4, riverColor, 0.34, false, 0.24);
+
+            buildRibbon3D(southRiverPts, 6.2, bankColor, 0.28, false, 0.22);
+            buildRibbon3D(southRiverPts, 5.0, riverColor, 0.34, false, 0.24);
+        }
+
+        // ============================================================================
+        // 5. YELLOW INTERNAL PESANTREN ROAD NETWORK (#F5D000)
+        // ============================================================================
+        function buildYellowRoads() {
+            const yellowHex = 0xf5d000;
+            const borderHex = 0xd9b300;
+
+            const segments = [
+                // Main North-to-South Spine
+                [[-6, -112], [0, -96], [8, -81], [27, -56], [38, -36], [46, -18], [43, 2], [39, 17], [31, 45], [23, 68], [21, 82], [26, 98], [44, 111]],
+                // Gate Triangle & Mosque Loop
+                [[-6, -112], [-15, -83], [8, -81]],
+                [[-15, -83], [-21, -78], [-22, -68], [-2, -61], [-5, -34]],
+                // Spur East above Food Court (5)
+                [[9, -48], [38, -43]],
+                // Central Cross-Campus Road & Western Asrama Putra (9) Loop
+                [[66, -17], [46, -18], [-5, -34], [-49, -34], [-63, -18], [-63, -4], [-55, 1], [-4, 2], [2, 8], [13, 10], [39, 17]],
+                // Mess Ustad (12) Upper Branch
+                [[2, 8], [14, -2], [30, -3], [44, -2]],
+                // Tugu Globe (7) Triangle Connector
+                [[46, -24], [58, -17], [44, -10]],
+                // Spur East between Lapangan Bola (11) & Administrasi (14)
+                [[39, 17], [58, 20]],
+                // Spur East to Dapur Putri (19)
+                [[27, 56], [42, 62]],
+                // Spur West to Asrama Putri (18, 21) & Aula STB (22)
+                [[23, 68], [10, 67], [-32, 48]]
+            ];
+
+            segments.forEach(pts => {
+                buildRibbon3D(pts, 3.4, borderHex, 0.34, false, 0.25);
+                buildRibbon3D(pts, 2.8, yellowHex, 0.39, false, 0.27);
+            });
+        }
+
+        // ============================================================================
+        // 6. SPORTS COURTS & L-SHAPED LAPANGAN PESANTREN (WITH MOWED TURF STRIPES)
+        // ============================================================================
+        function createCourtCanvasTexture(kind) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#48a84c';
+            ctx.fillRect(0, 0, 256, 512);
+
+            // Subtle turf stripes
+            for (let i = 0; i < 8; i++) {
+                if (i % 2 === 0) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+                    ctx.fillRect(0, i * 64, 256, 64);
+                }
+            }
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+            ctx.lineWidth = 5;
+            ctx.strokeRect(16, 16, 224, 480);
+
+            // Midline
+            ctx.beginPath();
+            ctx.moveTo(16, 256);
+            ctx.lineTo(240, 256);
+            ctx.stroke();
+
+            if (kind === 'soccer' || kind === 'basket') {
+                ctx.beginPath();
+                ctx.arc(128, 256, 44, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeRect(68, 16, 120, 76);
+                ctx.strokeRect(68, 420, 120, 76);
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createStripedLawnTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            for (let i = 0; i < 16; i++) {
+                ctx.fillStyle = i % 2 === 0 ? '#4caf50' : '#43a047';
+                ctx.fillRect(0, i * 32, 512, 32);
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(0.04, 0.04);
+            return tex;
+        }
+
+        function addCourtMesh(id, x, z, w, d, rotY, kind) {
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(w, 0.28, d),
+                new THREE.MeshLambertMaterial({ map: createCourtCanvasTexture(kind) })
+            );
+            mesh.position.set(x, 0.42, z);
+            mesh.rotation.y = rotY;
+            mesh.receiveShadow = true;
+            mesh.userData = { locationId: id };
+            interactiveMeshes.push(mesh);
+            scene.add(mesh);
+        }
+
+        function buildGreenFieldsAndCourts() {
+            // 8. Lapangan Basket
+            addCourtMesh(8, 35, -17, 13, 18, 0, 'basket');
+            // 11. Lapangan Bola / Upacara
+            addCourtMesh(11, 48, 4, 15, 27, 0.18, 'soccer');
+            // 24. Lapangan Bulu Tangkis
+            addCourtMesh(24, -24, -38, 13, 5.5, 0.22, 'net');
+            // 25. Lapangan Asrama Putra
+            addCourtMesh(25, -57, -12, 9.5, 15, 0, 'basket');
+            // 26. Lapangan Voli
+            addCourtMesh(26, 0, -73, 5.5, 11, 0.30, 'net');
+
+            // 23. Lapangan Pesantren (Large L-Shaped Green Field matching preview.webp)
+            const fieldPts = [
+                [-72, 23], [-32, 22], [-26, 8], [-6, 16],
+                [-16, 42], [-48, 32], [-48, 52], [-70, 53]
+            ];
+            const fieldShape = createShapeFromCoords(fieldPts);
+            const fieldGeo = new THREE.ExtrudeGeometry(fieldShape, { depth: 0.32, bevelEnabled: false });
+            fieldGeo.rotateX(-Math.PI / 2);
+            const fieldMesh = new THREE.Mesh(
+                fieldGeo,
+                new THREE.MeshLambertMaterial({ map: createStripedLawnTexture() })
+            );
+            fieldMesh.position.y = 0.25;
+            fieldMesh.receiveShadow = true;
+            fieldMesh.userData = { locationId: 23 };
+            interactiveMeshes.push(fieldMesh);
+            scene.add(fieldMesh);
+        }
+
+        // ============================================================================
+        // 7. ARCHITECTURAL 3D BUILDINGS (CRISP WHITE FACADES, WINDOWS, GREEN DOMES)
+        // ============================================================================
+        function createArchitecturalWindowTexture(floors, cols, wallHex = '#f4f6f8') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = wallHex;
+            ctx.fillRect(0, 0, 512, 256);
+
+            // Subtle cornice & floor line
+            ctx.fillStyle = '#dde3ea';
+            ctx.fillRect(0, 0, 512, 10);
+
+            const padX = 20;
+            const cellW = (512 - padX * 2) / cols;
+            const cellH = (236) / floors;
+
+            for (let r = 0; r < floors; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const wx = padX + c * cellW + cellW * 0.22;
+                    const wy = 16 + r * cellH + cellH * 0.20;
+                    const ww = cellW * 0.56;
+                    const wh = cellH * 0.52;
+
+                    // Recessed dark blue-slate window pane matching preview (1).webp
+                    ctx.fillStyle = '#475569';
+                    ctx.fillRect(wx, wy, ww, wh);
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(wx, wy, ww, wh);
+                }
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            return tex;
+        }
+
+        // Helper for Building with either Flat Parapet Roof or Pitched/Hipped Roof
+        function build3DBuilding({
+            id, x, z, w, d, h, rotY = 0,
+            roofType = 'pitched', // 'flat', 'pitched', 'hipped'
+            roofColor = 0xcbd5e1,
+            wallHex = '#f8fafc',
+            floors = 2
+        }) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.35, z);
+            group.rotation.y = rotY;
+
+            const cols = Math.max(3, Math.round(Math.max(w, d) / 2.6));
+            const winTex = createArchitecturalWindowTexture(floors, cols, wallHex);
+            const wallMat = new THREE.MeshLambertMaterial({ map: winTex });
+            const plainWallMat = new THREE.MeshLambertMaterial({ color: wallHex });
+
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(w, h, d),
+                [wallMat, wallMat, plainWallMat, plainWallMat, wallMat, wallMat]
+            );
+            body.position.y = h / 2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            body.userData = { locationId: id };
+            interactiveMeshes.push(body);
+            group.add(body);
+
+            if (roofType === 'flat') {
+                // Crisp recessed flat roof with parapet border (like Asrama Putra 6 & Food Court 5 in preview)
+                const parapet = new THREE.Mesh(
+                    new THREE.BoxGeometry(w + 0.4, 0.45, d + 0.4),
+                    new THREE.MeshLambertMaterial({ color: 0xe2e8f0 })
+                );
+                parapet.position.y = h + 0.22;
+                parapet.castShadow = true;
+                group.add(parapet);
+
+                const roofTop = new THREE.Mesh(
+                    new THREE.BoxGeometry(w - 0.6, 0.25, d - 0.6),
+                    new THREE.MeshLambertMaterial({ color: roofColor })
+                );
+                roofTop.position.y = h + 0.38;
+                roofTop.userData = { locationId: id };
+                interactiveMeshes.push(roofTop);
+                group.add(roofTop);
+            } else {
+                // Pitched / Hipped Roof
+                const roofH = Math.min(w, d) * 0.30 + 1.1;
+                const ov = 0.7;
+                const rw = w + ov * 2;
+                const rd = d + ov * 2;
+                const hw = rw / 2;
+                const hd = rd / 2;
+
+                const ridgeX = roofType === 'hipped' ? (w >= d ? Math.max(0, (rw - rd) / 2) : 0) : (w >= d ? hw : 0);
+                const ridgeZ = roofType === 'hipped' ? (d > w ? Math.max(0, (rd - rw) / 2) : 0) : (d > w ? hd : 0);
+
+                const v = [
+                    [-hw, 0, -hd], [hw, 0, -hd], [hw, 0, hd], [-hw, 0, hd],
+                    [-ridgeX, roofH, -ridgeZ], [ridgeX, roofH, ridgeZ]
+                ];
+                const indices = w >= d ? [
+                    0, 1, 5,  0, 5, 4,
+                    2, 3, 4,  2, 4, 5,
+                    1, 2, 5,  3, 0, 4
+                ] : [
+                    0, 4, 5,  0, 5, 3,
+                    1, 2, 5,  1, 5, 4,
+                    0, 1, 4,  2, 3, 5
+                ];
+                const posArr = [];
+                indices.forEach(idx => posArr.push(...v[idx]));
+                const roofGeo = new THREE.BufferGeometry();
+                roofGeo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+                roofGeo.computeVertexNormals();
+
+                const roofMesh = new THREE.Mesh(
+                    roofGeo,
+                    new THREE.MeshLambertMaterial({ color: roofColor, side: THREE.DoubleSide })
+                );
+                roofMesh.position.y = h;
+                roofMesh.castShadow = true;
+                roofMesh.receiveShadow = true;
+                roofMesh.userData = { locationId: id };
+                interactiveMeshes.push(roofMesh);
+                group.add(roofMesh);
+            }
+
+            scene.add(group);
+            return group;
+        }
+
+        function buildAll26Buildings() {
+            const ROOF_LIGHT_GREY = 0xdbe2ea; // Light architectural roof as in preview (1).webp
+            const ROOF_MID_GREY   = 0x94a3b8; // Medium slate roof
+            const ROOF_BLUE_SLATE = 0x7c8ea6; // Blue-grey roof for Aula STB (22), TU (13), Admin (14)
+            const DOME_GREEN      = 0x229954; // Iconic emerald green dome for Masjid (4) & Musalla Putri (17)
+
+            // 1. GERBANG (White Portal Archway at Northern Entrance)
+            const gateGroup = new THREE.Group();
+            gateGroup.position.set(-7, 0.35, -113);
+            gateGroup.rotation.y = 0.42;
+            const pillarMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+            const pL = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6.2, 1.5), pillarMat);
+            pL.position.set(-3.4, 3.1, 0);
+            const pR = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6.2, 1.5), pillarMat);
+            pR.position.set(3.4, 3.1, 0);
+            const topBeam = new THREE.Mesh(new THREE.BoxGeometry(9.2, 1.4, 2.0), new THREE.MeshLambertMaterial({ color: 0xe2e8f0 }));
+            topBeam.position.set(0, 6.2, 0);
+            [pL, pR, topBeam].forEach(m => {
+                m.castShadow = true;
+                m.userData = { locationId: 1 };
+                interactiveMeshes.push(m);
+            });
+            gateGroup.add(pL, pR, topBeam);
+            scene.add(gateGroup);
+
+            // 2. POS SATPAM
+            build3DBuilding({ id: 2, x: 1, z: -102, w: 4.5, d: 4.5, h: 3.2, rotY: -0.45, roofType: 'hipped', roofColor: ROOF_MID_GREY, floors: 1 });
+
+            // 3. SEKOLAH MTsN
+            build3DBuilding({ id: 3, x: 25, z: -83, w: 28, d: 7.2, h: 6.2, rotY: -0.58, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+
+            // 4. MASJID BABURRAYYAN (White Mosque + Green Dome + Tall Minaret Tower as in preview)
+            const masjid = build3DBuilding({ id: 4, x: -13, z: -77, w: 14.5, d: 11, h: 5.5, rotY: 0.30, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 1 });
+            // Green Dome
+            const domeDrum = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.7, 1.2, 24), new THREE.MeshLambertMaterial({ color: 0xf1f5f9 }));
+            domeDrum.position.y = 6.2;
+            const greenDome = new THREE.Mesh(
+                new THREE.SphereGeometry(3.6, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.55),
+                new THREE.MeshLambertMaterial({ color: DOME_GREEN })
+            );
+            greenDome.position.y = 6.6;
+            greenDome.castShadow = true;
+            greenDome.userData = { locationId: 4 };
+            interactiveMeshes.push(greenDome);
+            // Tall Minaret on East Corner
+            const minaretShaft = new THREE.Mesh(new THREE.BoxGeometry(1.6, 12.5, 1.6), new THREE.MeshLambertMaterial({ color: 0xf8fafc }));
+            minaretShaft.position.set(6.5, 6.25, -4.2);
+            minaretShaft.castShadow = true;
+            const minaretCap = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.5, 12), new THREE.MeshLambertMaterial({ color: DOME_GREEN }));
+            minaretCap.position.set(6.5, 13.5, -4.2);
+            masjid.add(domeDrum, greenDome, minaretShaft, minaretCap);
+
+            // 5. FOOD COURT / KANTIN
+            build3DBuilding({ id: 5, x: 46, z: -40, w: 13, d: 21, h: 5.0, rotY: -0.42, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 1 });
+
+            // 6. ASRAMA PUTRA (UTARA) - Large 3-Story L-Shaped Complex + West Wing (Exact match to preview)
+            build3DBuilding({ id: 6, x: -20, z: -50, w: 22, d: 14, h: 9.2, rotY: 0.22, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 3 });
+            build3DBuilding({ id: 6, x: -30, z: -55, w: 9, d: 10, h: 9.2, rotY: 0.22, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 3 });
+            build3DBuilding({ id: 6, x: -41, z: -48, w: 8, d: 16, h: 7.5, rotY: 0.22, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+
+            // 7. TUGU GLOBE (Cyan Triangular Fountain Island + Blue Wireframe Globe Monument)
+            const triPts = [[46.5, -21.5], [55.5, -17], [46, -11.5]];
+            const triShape = createShapeFromCoords(triPts);
+            const triGeo = new THREE.ExtrudeGeometry(triShape, { depth: 0.45, bevelEnabled: false });
+            triGeo.rotateX(-Math.PI / 2);
+            const triPool = new THREE.Mesh(triGeo, new THREE.MeshLambertMaterial({ color: 0x00b4d8 }));
+            triPool.position.y = 0.25;
+            scene.add(triPool);
+
+            const globeGroup = new THREE.Group();
+            globeGroup.position.set(49.5, 0.5, -17);
+            const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.5, 2.5, 16), new THREE.MeshLambertMaterial({ color: 0xf8fafc }));
+            ped.position.y = 1.25;
+            globeMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(1.85, 18, 16),
+                new THREE.MeshLambertMaterial({ color: 0x0284c7 })
+            );
+            globeMesh.position.y = 3.8;
+            // Subtle white latitude/longitude rings on globe
+            const wireGlobe = new THREE.Mesh(
+                new THREE.SphereGeometry(1.88, 12, 10),
+                new THREE.MeshBasicMaterial({ color: 0xe0f2fe, wireframe: true, transparent: true, opacity: 0.45 })
+            );
+            globeMesh.add(wireGlobe);
+            globeMesh.userData = { locationId: 7 };
+            interactiveMeshes.push(globeMesh, ped);
+            globeGroup.add(ped, globeMesh);
+            scene.add(globeGroup);
+
+            // 9. ASRAMA PUTRA (BARAT)
+            build3DBuilding({ id: 9, x: -45, z: -12, w: 14, d: 15, h: 6.5, rotY: 0, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+
+            // 10. GEDUNG SEKOLAH GTS (Long 3-Story School along East Road)
+            build3DBuilding({ id: 10, x: 67, z: 4, w: 8.5, d: 31, h: 8.8, rotY: -0.38, roofType: 'hipped', roofColor: ROOF_MID_GREY, floors: 3 });
+
+            // 12. MESS USTAD (Wedge/Angled Building in Central Pocket)
+            build3DBuilding({ id: 12, x: 25, z: -1, w: 15.5, d: 7.0, h: 4.8, rotY: 0.08, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 1 });
+
+            // 13. TU & PERPUSTAKAAN (Twin Parallel Buildings with Blue-Slate Pitched Roofs)
+            build3DBuilding({ id: 13, x: 14, z: 17, w: 6.2, d: 14, h: 6.4, rotY: 0.36, roofType: 'hipped', roofColor: ROOF_BLUE_SLATE, floors: 2 });
+            build3DBuilding({ id: 13, x: 22, z: 16, w: 6.0, d: 9.5, h: 6.4, rotY: 0.36, roofType: 'hipped', roofColor: ROOF_BLUE_SLATE, floors: 2 });
+            build3DBuilding({ id: 13, x: 20, z: 23, w: 6.0, d: 5.2, h: 6.0, rotY: 0.36, roofType: 'hipped', roofColor: ROOF_BLUE_SLATE, floors: 2 });
+
+            // 14. ADMINISTRASI (2 Gedung Administrasi & Ruang Turkey)
+            build3DBuilding({ id: 14, x: 43, z: 22, w: 14.5, d: 6.2, h: 5.8, rotY: 0.14, roofType: 'hipped', roofColor: ROOF_BLUE_SLATE, floors: 2 });
+
+            // 15. RUANG MAKAN PUTRA
+            build3DBuilding({ id: 15, x: 74, z: 25, w: 12.5, d: 7.2, h: 5.2, rotY: -0.42, roofType: 'hipped', roofColor: ROOF_MID_GREY, floors: 1 });
+
+            // 16. GEDUNG TURKEY / GEDUNG SEKOLAH
+            build3DBuilding({ id: 16, x: 35, z: 43, w: 5.8, d: 22, h: 6.0, rotY: 0.28, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+
+            // 17. MUSALLA PUTRI (Square White Building with Green Dome)
+            const musallaPutri = build3DBuilding({ id: 17, x: 17, z: 33, w: 8.0, d: 7.5, h: 4.5, rotY: 0.36, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 1 });
+            const mpDome = new THREE.Mesh(
+                new THREE.SphereGeometry(2.3, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+                new THREE.MeshLambertMaterial({ color: DOME_GREEN })
+            );
+            mpDome.position.y = 4.6;
+            mpDome.castShadow = true;
+            mpDome.userData = { locationId: 17 };
+            interactiveMeshes.push(mpDome);
+            musallaPutri.add(mpDome);
+
+            // 18. ASRAMA PUTRI (TENGAH) - L-Shaped 2-Story White Dormitory
+            build3DBuilding({ id: 18, x: 4, z: 51, w: 6.2, d: 23, h: 6.5, rotY: 0.38, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+            build3DBuilding({ id: 18, x: 12, z: 60, w: 11, d: 6.5, h: 6.5, rotY: 0.38, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+
+            // 19. DAPUR PUTRI (3 Structures: L-wing, Pitched-Roof Hall, Square Annex)
+            build3DBuilding({ id: 19, x: 44, z: 62, w: 14, d: 6.5, h: 5.0, rotY: 0.30, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 1 });
+            build3DBuilding({ id: 19, x: 48, z: 69, w: 6.5, d: 11, h: 5.0, rotY: 0.30, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 1 });
+            build3DBuilding({ id: 19, x: 39, z: 75, w: 14, d: 6.8, h: 5.4, rotY: 0.30, roofType: 'hipped', roofColor: ROOF_MID_GREY, floors: 1 });
+            build3DBuilding({ id: 19, x: 42, z: 86, w: 8.2, d: 7.2, h: 4.8, rotY: 0.30, roofType: 'hipped', roofColor: ROOF_MID_GREY, floors: 1 });
+
+            // 20. KANTIN PUTRI & MESS USTAZAH
+            build3DBuilding({ id: 20, x: -1, z: 78, w: 11.5, d: 5.8, h: 5.5, rotY: 0.38, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+            build3DBuilding({ id: 20, x: 0, z: 84, w: 5.5, d: 11, h: 5.5, rotY: 0.38, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+            build3DBuilding({ id: 20, x: -1, z: 95, w: 8.0, d: 4.8, h: 4.5, rotY: -0.65, roofType: 'hipped', roofColor: ROOF_MID_GREY, floors: 1 });
+
+            // 21. ASRAMA PUTRI (SELATAN) - Parallel Twin 2-Story Dorms
+            build3DBuilding({ id: 21, x: -17, z: 66, w: 15.5, d: 6.8, h: 6.5, rotY: 0.44, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+            build3DBuilding({ id: 21, x: -21, z: 75, w: 15.5, d: 6.8, h: 6.5, rotY: 0.44, roofType: 'flat', roofColor: ROOF_LIGHT_GREY, floors: 2 });
+
+            // 22. AULA STB (Square Building with Blue-Slate Pyramid/Hipped Roof)
+            build3DBuilding({ id: 22, x: -33, z: 58, w: 11.5, d: 10.5, h: 5.5, rotY: 0.44, roofType: 'hipped', roofColor: ROOF_BLUE_SLATE, floors: 1 });
+        }
+
+        // ============================================================================
+        // 8. PROCEDURAL 3D ROUND CANOPY TREES & TROPICAL PALM TREES (EXACT PREVIEW STYLE)
+        // ============================================================================
+        function createCanopyTree(x, z, scale = 1.0, variant = 0) {
+            const g = new THREE.Group();
+            g.position.set(x, 0.3, z);
+
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.26 * scale, 0.4 * scale, 2.2 * scale, 7),
+                new THREE.MeshLambertMaterial({ color: 0x6d4c41 })
+            );
+            trunk.position.y = 1.1 * scale;
+            trunk.castShadow = true;
+            g.add(trunk);
+
+            const palette = [0x388e3c, 0x43a047, 0x2e7d32, 0x4caf50];
+            const crownMat = new THREE.MeshLambertMaterial({ color: palette[variant % palette.length] });
+
+            const mainSphere = new THREE.Mesh(new THREE.SphereGeometry(1.75 * scale, 12, 10), crownMat);
+            mainSphere.position.y = 3.1 * scale;
+            mainSphere.castShadow = true;
+            mainSphere.receiveShadow = true;
+            g.add(mainSphere);
+
+            if (variant % 3 === 0) {
+                const subSphere = new THREE.Mesh(new THREE.SphereGeometry(1.2 * scale, 10, 8), crownMat);
+                subSphere.position.set(0.8 * scale, 2.6 * scale, 0.5 * scale);
+                subSphere.castShadow = true;
+                g.add(subSphere);
+            }
+            return g;
+        }
+
+        function createPalmTree(x, z, scale = 1.0) {
+            const g = new THREE.Group();
+            g.position.set(x, 0.3, z);
+
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.18 * scale, 0.32 * scale, 4.5 * scale, 7),
+                new THREE.MeshLambertMaterial({ color: 0x795548 })
+            );
+            trunk.position.y = 2.25 * scale;
+            trunk.castShadow = true;
+            g.add(trunk);
+
+            const frondMat = new THREE.MeshLambertMaterial({ color: 0x2e7d32, side: THREE.DoubleSide });
+            const numFronds = 7;
+            for (let i = 0; i < numFronds; i++) {
+                const angle = (i / numFronds) * Math.PI * 2;
+                const frondPivot = new THREE.Group();
+                frondPivot.position.y = 4.4 * scale;
+                frondPivot.rotation.y = angle;
+
+                const frond = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.45 * scale, 0.08 * scale, 2.4 * scale),
+                    frondMat
+                );
+                frond.position.set(0, -0.25 * scale, 1.15 * scale);
+                frond.rotation.x = 0.42;
+                frond.castShadow = true;
+                frondPivot.add(frond);
+                g.add(frondPivot);
+            }
+            return g;
+        }
+
+        function buildTreesAndPalms() {
+            mediumTreesGroup = new THREE.Group();
+            denseTreesGroup = new THREE.Group();
+
+            // Curated Medium Tree & Palm Positions (Matches preview (1).webp, (3).webp, (4).webp)
+            const mediumCoords = [
+                // Along Northern & Western Perimeter
+                [-14, -95, 'p'], [-25, -80, 't'], [-36, -60, 't'], [-48, -38, 't'], [-62, -25, 'p'],
+                [-72, -4, 't'], [-82, 18, 't'], [-85, 38, 't'], [-82, 58, 'p'], [-74, 78, 't'], [-62, 95, 't'],
+                // Around Lapangan Pesantren (23) & West Hills
+                [-68, 12, 't'], [-56, 10, 'p'], [-44, 12, 't'], [-32, 8, 't'], [-20, 6, 'p'],
+                [-64, 62, 't'], [-54, 68, 'p'], [-46, 76, 't'], [-36, 82, 't'], [-22, 88, 'p'],
+                // Central Parkland (Between Asrama Putra 6, 9, and Lapangan Basket 8)
+                [-35, -24, 't'], [-24, -26, 'p'], [-14, -24, 't'], [-4, -22, 't'], [8, -22, 'p'], [18, -20, 't'],
+                [-32, -12, 'p'], [-20, -14, 't'], [-10, -12, 't'], [2, -12, 'p'], [14, -12, 't'], [24, -12, 't'],
+                [-26, -2, 't'], [-14, -2, 'p'], [-2, -2, 't'], [8, 4, 't'],
+                // Around Mosque (4), MTsN (3) & Food Court (5)
+                [4, -88, 't'], [12, -72, 'p'], [18, -60, 't'], [12, -52, 't'], [24, -44, 'p'], [30, -32, 't'],
+                [38, -62, 't'], [50, -56, 'p'], [58, -32, 't'],
+                // Southern & Southeastern Riverbanks (Around Dapur Putri 19 & Kantin Putri 20)
+                [76, 44, 't'], [70, 56, 'p'], [66, 70, 't'], [68, 84, 't'], [64, 98, 'p'], [54, 108, 't'],
+                [84, 54, 't'], [80, 68, 'p'], [74, 82, 't'],
+                [32, 92, 't'], [28, 104, 'p'], [16, 102, 't'], [10, 92, 't'], [-10, 92, 'p'], [-14, 84, 't'],
+                // Central Academic Spine (Near TU 13, Musalla Putri 17, Asrama Putri 18)
+                [4, 24, 't'], [6, 36, 'p'], [-6, 42, 't'], [-14, 48, 't'], [26, 32, 't'], [28, 52, 'p']
+            ];
+
+            mediumCoords.forEach((c, idx) => {
+                const sc = 0.85 + (idx % 4) * 0.12;
+                const mesh = c[2] === 'p' ? createPalmTree(c[0], c[1], sc) : createCanopyTree(c[0], c[1], sc, idx);
+                mediumTreesGroup.add(mesh);
+            });
+
+            // Additional Dense Trees for "Rimbun" Mode (Matches preview.webp)
+            for (let i = 0; i < mediumCoords.length; i++) {
+                const base = mediumCoords[i];
+                const ox = base[0] + (i % 2 === 0 ? 5.5 : -5.5);
+                const oz = base[1] + (i % 3 === 0 ? 4.5 : -4.5);
+                // Keep off buildings/roads roughly
+                const sc = 0.78 + (i % 3) * 0.14;
+                const extra = i % 3 === 0 ? createPalmTree(ox, oz, sc) : createCanopyTree(ox, oz, sc, i + 2);
+                denseTreesGroup.add(extra);
+            }
+            denseTreesGroup.visible = false; // Default starts in 'medium' matching preview (1).webp
+
+            scene.add(mediumTreesGroup);
+            scene.add(denseTreesGroup);
+        }
+
+        // ============================================================================
+        // 9. FLOATING 3D BUILDING LABELS (EXACT MATCH TO PREVIEW (1).WEBP)
+        // ============================================================================
+        function initFloatingLabels() {
+            const container = document.getElementById('labels-layer');
+            const allLabelPoints = [
+                ...LOCATIONS.map(l => ({ id: l.id, text: l.shortLabel, x: l.x, y: l.y, z: l.z })),
+                ...EXTRA_LABELS.map(e => ({ id: e.id, text: e.shortLabel, x: e.x, y: e.y, z: e.z }))
+            ];
+
+            allLabelPoints.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'bldg-label';
+                div.textContent = item.text;
+                div.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    const loc = LOCATIONS.find(l => l.id === item.id);
+                    if (loc) selectAndFocusLocation(loc);
+                });
+                container.appendChild(div);
+                labelDomItems.push({ ...item, el: div });
+            });
+        }
+
+        function updateFloatingLabelsProjection() {
+            if (!showLabels) return;
+            const halfW = window.innerWidth / 2;
+            const halfH = window.innerHeight / 2;
+
+            labelDomItems.forEach(item => {
+                const v = new THREE.Vector3(item.x, item.y + 1.8, item.z);
+                v.project(camera);
+                if (v.z > 1) {
+                    item.el.style.display = 'none';
+                    return;
+                }
+                const sx = (v.x * halfW) + halfW;
+                const sy = -(v.y * halfH) + halfH;
+                item.el.style.display = 'block';
+                item.el.style.left = `${sx}px`;
+                item.el.style.top = `${sy}px`;
+            });
+        }
+
+        // ============================================================================
+        // 10. UI ACTIONS, PRESET SWITCHERS & GEOCODING DIRECTORY
+        // ============================================================================
+        function applyReferencePreset(presetName) {
+            if (presetName === 'preview1') {
+                // Matches preview (1).webp & preview (2).webp: Rotated SE View + Labels ON + Light Theme + Medium Trees
+                camState.targetTheta = 2.38;
+                camState.targetPhi = 0.92;
+                camState.targetRadius = 262;
+                camState.targetLookAt.set(2, 0, -2);
+                setThemeMode(false);
+                setLabelsMode(true);
+                setTreeDensityMode('medium');
+            } else if (presetName === 'previewMain') {
+                // Matches preview.webp: North Up View + Labels OFF + Light Theme + Dense Trees
+                camState.targetTheta = -0.18;
+                camState.targetPhi = 0.88;
+                camState.targetRadius = 262;
+                camState.targetLookAt.set(0, 0, 2);
+                setThemeMode(false);
+                setLabelsMode(false);
+                setTreeDensityMode('dense');
+            } else if (presetName === 'previewDark') {
+                // Matches preview (3).webp: North Up View + Labels OFF + Dark Theme + Medium Trees
+                camState.targetTheta = -0.18;
+                camState.targetPhi = 0.88;
+                camState.targetRadius = 262;
+                camState.targetLookAt.set(0, 0, 2);
+                setThemeMode(true);
+                setLabelsMode(false);
+                setTreeDensityMode('medium');
+            } else if (presetName === 'previewClean') {
+                // Matches preview (4).webp: Rotated SE View + Labels OFF + Light Theme + Medium Trees
+                camState.targetTheta = 2.38;
+                camState.targetPhi = 0.92;
+                camState.targetRadius = 262;
+                camState.targetLookAt.set(2, 0, -2);
+                setThemeMode(false);
+                setLabelsMode(false);
+                setTreeDensityMode('medium');
+            }
+            updateActiveViewButtons();
+        }
+
+        function setLabelsMode(enabled) {
+            showLabels = enabled;
+            const layer = document.getElementById('labels-layer');
+            const btn = document.getElementById('toggle-labels-btn');
+            if (showLabels) {
+                layer.classList.remove('hidden');
+                btn.textContent = 'AKTIF';
+                btn.className = 'px-3 py-1 rounded-full font-bold text-[11px] bg-emerald-600 text-white';
+                updateFloatingLabelsProjection();
+            } else {
+                layer.classList.add('hidden');
+                btn.textContent = 'NONAKTIF';
+                btn.className = 'px-3 py-1 rounded-full font-bold text-[11px] bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white';
+            }
+        }
+
+        function toggleLabels() {
+            setLabelsMode(!showLabels);
+        }
+
+        function setThemeMode(dark) {
+            isDarkTheme = dark;
+            const mainTitle = document.getElementById('main-title');
+            const subTitle = document.getElementById('sub-title');
+            const btn = document.getElementById('toggle-theme-btn');
+
+            if (isDarkTheme) {
+                document.body.classList.add('dark-theme');
+                scene.background.setHex(0x111318);
+                if (!isSatelliteSurface) groundSurfaceMesh.material = darkGroundMat;
+                slabWallMesh.material.color.setHex(0x4b5059);
+                mainTitle.className = 'text-[20px] sm:text-[22px] font-extrabold tracking-tight text-white leading-snug transition-colors';
+                subTitle.className = 'text-[12px] sm:text-[12.5px] font-medium text-slate-400 tracking-normal mt-0.5 transition-colors';
+                btn.textContent = 'GELAP';
+            } else {
+                document.body.classList.remove('dark-theme');
+                scene.background.setHex(0xe6ebf0);
+                if (!isSatelliteSurface) groundSurfaceMesh.material = defaultGroundMat;
+                slabWallMesh.material.color.setHex(0x888b90);
+                mainTitle.className = 'text-[20px] sm:text-[22px] font-extrabold tracking-tight text-slate-900 leading-snug transition-colors';
+                subTitle.className = 'text-[12px] sm:text-[12.5px] font-medium text-slate-500 tracking-normal mt-0.5 transition-colors';
+                btn.textContent = 'TERANG';
+            }
+        }
+
+        function toggleDarkTheme() {
+            setThemeMode(!isDarkTheme);
+        }
+
+        function setTreeDensityMode(mode) {
+            treeDensityMode = mode;
+            const btn = document.getElementById('toggle-trees-btn');
+            if (mode === 'dense') {
+                mediumTreesGroup.visible = true;
+                denseTreesGroup.visible = true;
+                btn.textContent = 'RIMBUN';
+            } else if (mode === 'medium') {
+                mediumTreesGroup.visible = true;
+                denseTreesGroup.visible = false;
+                btn.textContent = 'SEDANG';
+            } else {
+                mediumTreesGroup.visible = false;
+                denseTreesGroup.visible = false;
+                btn.textContent = 'TANPA POHON';
+            }
+        }
+
+        function cycleTreeDensity() {
+            const next = treeDensityMode === 'medium' ? 'dense' : (treeDensityMode === 'dense' ? 'none' : 'medium');
+            setTreeDensityMode(next);
+        }
+
+        function toggleSatelliteSurface() {
+            isSatelliteSurface = !isSatelliteSurface;
+            const btn = document.getElementById('toggle-sat-btn');
+            if (isSatelliteSurface) {
+                groundSurfaceMesh.material = satelliteGroundMat;
+                btn.textContent = 'AKTIF';
+                btn.className = 'px-3 py-1 rounded-full font-bold text-[11px] bg-blue-600 text-white';
+            } else {
+                groundSurfaceMesh.material = isDarkTheme ? darkGroundMat : defaultGroundMat;
+                btn.textContent = 'NONAKTIF';
+                btn.className = 'px-3 py-1 rounded-full font-bold text-[11px] bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white';
+            }
+        }
+
+        function rotateCameraStep(dir) {
+            // Smoothly toggles between the two signature angles in the preview images or rotates by 65 deg
+            if (dir < 0) {
+                // Switch to North-Up Isometric View (like preview.webp & preview (3).webp)
+                camState.targetTheta = -0.18;
+                camState.targetPhi = 0.88;
+                camState.targetLookAt.set(0, 0, 2);
+            } else {
+                // Switch to Southeast Isometric View (like preview (1).webp & preview (4).webp)
+                camState.targetTheta = 2.38;
+                camState.targetPhi = 0.92;
+                camState.targetLookAt.set(2, 0, -2);
+            }
+            updateActiveViewButtons();
+        }
+
+        function updateActiveViewButtons() {
+            const btnCCW = document.getElementById('btn-rot-ccw');
+            const btnCW = document.getElementById('btn-rot-cw');
+            const isSE = Math.abs(camState.targetTheta - 2.38) < 0.5;
+            btnCW.classList.toggle('active-view', isSE);
+            btnCCW.classList.toggle('active-view', !isSE);
+        }
+
+        function resetNorthView() {
+            camState.targetTheta = -0.18;
+            camState.targetPhi = 0.88;
+            camState.targetRadius = 262;
+            camState.targetLookAt.set(0, 0, 2);
+            updateActiveViewButtons();
+        }
+
+        function zoomCameraStep(delta) {
+            camState.targetRadius = Math.max(70, Math.min(440, camState.targetRadius + delta));
+        }
+
+        function toggleFullscreenOrFit() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+            camState.targetRadius = 262;
+            camState.targetLookAt.set(0, 0, 0);
+        }
+
+        function toggleSettingsMenu() {
+            const drawer = document.getElementById('settings-drawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        function toggleGoogleMapsModal(show) {
+            const modal = document.getElementById('gmaps-modal');
+            if (show) {
+                modal.classList.remove('hidden');
+                document.getElementById('settings-drawer').classList.add('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function selectAndFocusLocation(loc) {
+            camState.targetLookAt.set(loc.x, 0, loc.z);
+            camState.targetRadius = 135;
+
+            const card = document.getElementById('geo-card');
+            document.getElementById('gc-id').textContent = `#${loc.id}`;
+            document.getElementById('gc-cat').textContent = loc.cat;
+            document.getElementById('gc-name').textContent = loc.fullName;
+            document.getElementById('gc-coords').textContent = `${loc.lat.toFixed(5)}° U, ${loc.lng.toFixed(5)}° T`;
+            document.getElementById('gc-gmaps').href = `https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}`;
+            card.classList.remove('hidden');
+        }
+
+        function closeGeoCard() {
+            document.getElementById('geo-card').classList.add('hidden');
+        }
+
+        function populateDirectoryList(query) {
+            const container = document.getElementById('loc-directory');
+            const q = query.trim().toLowerCase();
+            container.innerHTML = '';
+
+            LOCATIONS.filter(l =>
+                !q || l.fullName.toLowerCase().includes(q) || l.cat.toLowerCase().includes(q) || String(l.id) === q
+            ).forEach(loc => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-2 rounded-xl hover:bg-slate-200/70 dark:hover:bg-slate-800 flex items-center justify-between gap-2 transition-colors';
+                btn.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-6 h-6 rounded-lg bg-red-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">${loc.id}</span>
+                        <div class="truncate">
+                            <div class="font-bold truncate">${loc.fullName.replace(/^\d+\.\s*/, '')}</div>
+                            <div class="text-[10px] opacity-65 mono">${loc.lat.toFixed(5)}° U, ${loc.lng.toFixed(5)}° T</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 shrink-0">${loc.cat}</span>
+                `;
+                btn.onclick = () => selectAndFocusLocation(loc);
+                container.appendChild(btn);
+            });
+        }
+
+        function filterLocationDirectory(val) {
+            populateDirectoryList(val);
+        }
+
+        function downloadHighResPNG() {
+            renderer.render(scene, camera);
+            const url = renderer.domElement.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.download = 'Denah-Pesantren-Oemar-Diyan-3D.png';
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // ============================================================================
+        // 11. INTERACTIVE ORBIT, PAN, ZOOM & RAYCAST CLICK HANDLERS
+        // ============================================================================
+        function initControls() {
+            const dom = renderer.domElement;
+
+            dom.addEventListener('mousedown', (e) => {
+                camState.isDragging = true;
+                camState.isPanning = (e.button === 2 || e.shiftKey);
+                camState.prevX = e.clientX;
+                camState.prevY = e.clientY;
+                camState.downX = e.clientX;
+                camState.downY = e.clientY;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!camState.isDragging) return;
+                const dx = e.clientX - camState.prevX;
+                const dy = e.clientY - camState.prevY;
+                camState.prevX = e.clientX;
+                camState.prevY = e.clientY;
+
+                if (camState.isPanning) {
+                    const panFactor = camState.radius * 0.0014;
+                    const right = new THREE.Vector3(Math.cos(camState.theta), 0, -Math.sin(camState.theta));
+                    const forward = new THREE.Vector3(Math.sin(camState.theta), 0, Math.cos(camState.theta));
+                    camState.targetLookAt.addScaledVector(right, -dx * panFactor);
+                    camState.targetLookAt.addScaledVector(forward, -dy * panFactor);
+                } else {
+                    camState.targetTheta -= dx * 0.0065;
+                    camState.targetPhi = Math.max(0.12, Math.min(1.38, camState.targetPhi - dy * 0.0065));
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (!camState.isDragging) return;
+                camState.isDragging = false;
+
+                // Detect clean click on a 3D building/court
+                const moveDist = Math.hypot(e.clientX - camState.downX, e.clientY - camState.downY);
+                if (moveDist < 5 && e.button === 0) {
+                    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                    raycaster.setFromCamera(mouse, camera);
+                    const hits = raycaster.intersectObjects(interactiveMeshes, false);
+                    if (hits.length > 0 && hits[0].object.userData.locationId) {
+                        const loc = LOCATIONS.find(l => l.id === hits[0].object.userData.locationId);
+                        if (loc) selectAndFocusLocation(loc);
+                    }
+                }
+            });
+
+            dom.addEventListener('contextmenu', e => e.preventDefault());
+
+            dom.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                camState.targetRadius = Math.max(70, Math.min(440, camState.targetRadius + e.deltaY * 0.16));
+            }, { passive: false });
+
+            // Touch gestures for mobile/tablet
+            let pinchDist = 0;
+            dom.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    camState.isDragging = true;
+                    camState.isPanning = false;
+                    camState.prevX = e.touches[0].clientX;
+                    camState.prevY = e.touches[0].clientY;
+                } else if (e.touches.length === 2) {
+                    camState.isDragging = false;
+                    pinchDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                }
+            }, { passive: true });
+
+            dom.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1 && camState.isDragging) {
+                    const dx = e.touches[0].clientX - camState.prevX;
+                    const dy = e.touches[0].clientY - camState.prevY;
+                    camState.prevX = e.touches[0].clientX;
+                    camState.prevY = e.touches[0].clientY;
+                    camState.targetTheta -= dx * 0.0065;
+                    camState.targetPhi = Math.max(0.12, Math.min(1.38, camState.targetPhi - dy * 0.0065));
+                } else if (e.touches.length === 2) {
+                    const d = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    camState.targetRadius = Math.max(70, Math.min(440, camState.targetRadius + (pinchDist - d) * 0.45));
+                    pinchDist = d;
+                }
+            }, { passive: true });
+
+            dom.addEventListener('touchend', () => {
+                camState.isDragging = false;
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        // ============================================================================
+        // 12. ANIMATION LOOP & DYNAMIC COMPASS ROTATION
+        // ============================================================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            camState.theta += (camState.targetTheta - camState.theta) * 0.1;
+            camState.phi += (camState.targetPhi - camState.phi) * 0.1;
+            camState.radius += (camState.targetRadius - camState.radius) * 0.1;
+            camState.target.lerp(camState.targetLookAt, 0.1);
+
+            const x = camState.target.x + camState.radius * Math.sin(camState.phi) * Math.sin(camState.theta);
+            const y = camState.target.y + camState.radius * Math.cos(camState.phi);
+            const z = camState.target.z + camState.radius * Math.sin(camState.phi) * Math.cos(camState.theta);
+
+            camera.position.set(x, y, z);
+            camera.lookAt(camState.target);
+
+            // Rotate bottom-left compass needle dynamically with camera azimuth
+            const dial = document.getElementById('compass-dial');
+            if (dial) {
+                const deg = THREE.MathUtils.radToDeg(camState.theta);
+                dial.style.transform = `rotate(${deg}deg)`;
+            }
+
+            if (globeMesh) {
+                globeMesh.rotation.y += 0.006;
+            }
+
+            updateFloatingLabelsProjection();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

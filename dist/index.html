@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Denah 3D Pesantren Oemar Diyan — Peta Geocoding Interaktif</title>
+    <meta name="description" content="Denah ilustrasi 3D interaktif Pesantren Tgk. Chiek Oemar Diyan, Krueng Lamkareung, Aceh Besar — geocoding WGS84 dan tampilan satelit." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2322a06b'/%3E%3Cpath d='M16 6c-3 4-6 6-6 10a6 6 0 0 0 12 0c0-4-3-6-6-10z' fill='%23fff'/%3E%3C/svg%3E" />
+    <script type="module" crossorigin src="/assets/main-Cz06pWX8.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="stylesheet" crossorigin href="/assets/main-B--ZJKfA.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="labels"></div>
+
+      <header class="hud-title">
+        <h1>Denah Pesantren Oemar Diyan</h1>
+        <p id="subtitle">Krueng Lamkareung, Aceh Besar · 5.3992° U, 95.4358° T</p>
+      </header>
+
+      <div class="hud-search">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input id="search" type="text" placeholder="Cari lokasi atau nomor (1–26)…" autocomplete="off" />
+          <kbd>/</kbd>
+        </div>
+        <ul id="results" class="results hidden"></ul>
+      </div>
+
+      <aside id="info" class="info-card hidden" aria-live="polite">
+        <button class="icon-btn close" data-close="info" title="Tutup">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+        <div class="info-head">
+          <span id="info-num" class="badge">1</span>
+          <div>
+            <span id="info-cat" class="info-cat"></span>
+            <h2 id="info-name"></h2>
+          </div>
+        </div>
+        <p id="info-desc"></p>
+        <div class="info-coord">
+          <span>Koordinat</span>
+          <code id="info-coord"></code>
+          <button id="copy-coord" class="link-btn" title="Salin koordinat">Salin</button>
+        </div>
+        <div class="info-actions">
+          <a id="info-gmaps" target="_blank" rel="noopener" class="btn primary">Buka di Google Maps</a>
+          <a id="info-route" target="_blank" rel="noopener" class="btn">Rute</a>
+        </div>
+      </aside>
+
+      <div class="hud-bottom-left">
+        <button id="compass" class="compass" title="Arahkan ke utara">
+          <div id="compass-needle" class="needle">
+            <svg viewBox="0 0 40 40">
+              <polygon points="20,5 24.5,20 20,18 15.5,20" fill="#2563eb" />
+              <polygon points="20,35 24.5,20 20,22 15.5,20" fill="#94a3b8" />
+              <circle cx="20" cy="20" r="2.2" fill="#fff" stroke="#334155" stroke-width="1" />
+            </svg>
+            <span>U</span>
+          </div>
+        </button>
+        <div id="cursor-coord" class="cursor-coord hidden"></div>
+      </div>
+
+      <div class="hud-dock">
+        <div class="hud-switches-row">
+          <!-- Tool Switcher: Klik (Mouse), Geser (Hand Tool), Skala (Magnifying Glass) -->
+          <div class="tool-switch" role="toolbar" aria-label="Alat interaksi peta">
+            <button data-tool="select" class="tool-btn active" title="Mode Klik: Klik bangunan untuk detail &amp; putar 3D (Pintasan: V)">
+              <svg viewBox="0 0 24 24"><path d="m4 4 7.07 17 2.51-7.39L21 11.07z" /><path d="m13.5 13.5 6 6" /></svg>
+              <span>Klik</span>
+            </button>
+            <button data-tool="pan" class="tool-btn" title="Hand Tool: Geser posisi peta dengan 1 jari / mouse (Pintasan: H)">
+              <svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v6" /><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></svg>
+              <span>Geser</span>
+            </button>
+            <button data-tool="zoom" class="tool-btn" title="Scale Tool: Kaca pembesar untuk zoom in/out dengan geser atas/bawah atau ketuk (Pintasan: Z)">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /><path d="M11 8v6M8 11h6" /></svg>
+              <span>Scale</span>
+            </button>
+          </div>
+
+          <div class="mode-switch" role="tablist">
+            <button data-mode="illustrated" class="active" title="Denah ilustrasi 3D">Denah</button>
+            <button data-mode="hybrid" title="Citra satelit + bangunan 3D">Hybrid</button>
+            <button data-mode="satellite" title="Citra satelit asli">Satelit</button>
+          </div>
+        </div>
+
+        <div class="dock">
+          <button class="dock-btn" id="rot-left" title="Putar kiri 45°">
+            <svg viewBox="0 0 24 24"><path d="M3 4v6h6" /><path d="M3.5 15a9 9 0 1 0 2.1-9.4L3 10" /></svg>
+          </button>
+          <button class="dock-btn" id="rot-right" title="Putar kanan 45°">
+            <svg viewBox="0 0 24 24"><path d="M21 4v6h-6" /><path d="M20.5 15a9 9 0 1 1-2.1-9.4L21 10" /></svg>
+          </button>
+
+          <!-- Zoom Controls with Magnifying Glass & Live Zoom Percentage -->
+          <div class="zoom-pill" title="Kontrol Zoom &amp; Persentase Skala">
+            <button class="zoom-step-btn" id="zoom-out" title="Perkecil (Zoom Out)">
+              <svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+            </button>
+            <button class="zoom-pct-btn" id="zoom-pct" title="Persentase Zoom saat ini (Klik untuk reset ke 100%)">
+              <svg class="zoom-mini-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              <span id="zoom-pct-val">100%</span>
+            </button>
+            <button class="zoom-step-btn" id="zoom-in" title="Perbesar (Zoom In)">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
+          </div>
+
+          <button class="dock-btn" id="fit" title="Tampilkan seluruh denah">
+            <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+          </button>
+          <button class="dock-btn dark" id="menu-btn" title="Pengaturan tampilan">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h16" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <section id="menu" class="menu hidden">
+        <div class="menu-head">
+          <div>
+            <h3>Pengaturan Peta</h3>
+            <p>Tampilan, lapisan &amp; geocoding</p>
+          </div>
+          <button class="icon-btn" data-close="menu" title="Tutup">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <div class="menu-group">
+          <label class="menu-label">Sudut pandang</label>
+          <div class="seg" data-setting="view">
+            <button data-value="north" class="active">Utara</button>
+            <button data-value="east">Timur</button>
+            <button data-value="top">Atas</button>
+          </div>
+        </div>
+
+        <div class="menu-group">
+          <label class="menu-label">Tema</label>
+          <div class="seg" data-setting="theme">
+            <button data-value="light" class="active">Terang</button>
+            <button data-value="dark">Gelap</button>
+          </div>
+        </div>
+
+        <div class="menu-group">
+          <label class="menu-label">Pepohonan (dari citra satelit)</label>
+          <div class="seg" data-setting="trees">
+            <button data-value="none">Tanpa</button>
+            <button data-value="medium">Sedang</button>
+            <button data-value="dense" class="active">Asli</button>
+          </div>
+        </div>
+
+        <div class="menu-group toggles">
+          <label class="toggle"><input type="checkbox" data-toggle="labels" checked /><span></span>Label nama gedung</label>
+          <label class="toggle"><input type="checkbox" data-toggle="numbers" /><span></span>Nomor lokasi (1–26)</label>
+          <label class="toggle"><input type="checkbox" data-toggle="shadows" checked /><span></span>Bayangan matahari</label>
+          <label class="toggle"><input type="checkbox" data-toggle="autorotate" /><span></span>Putar otomatis</label>
+        </div>
+
+        <div class="menu-group">
+          <label class="menu-label">Daftar lokasi</label>
+          <ol id="directory" class="directory"></ol>
+        </div>
+
+        <div class="menu-group links">
+          <button id="open-gmaps" class="btn">Google Maps</button>
+          <a id="dl-geojson" href="data/campus.geojson" download="pesantren-oemar-diyan.geojson" class="btn">Unduh GeoJSON</a>
+        </div>
+        <div class="menu-group links" style="padding-top:0">
+          <a href="/spanduk-mading" class="btn primary" style="width:100%">Buka Desain Spanduk / Mading</a>
+        </div>
+        <p class="attribution">Data vektor: digitasi peta manual, georeferensi SIFT ke citra satelit · Citra: © Esri, Maxar, Earthstar Geographics</p>
+      </section>
+
+      <div id="gmaps-modal" class="modal hidden">
+        <div class="modal-card">
+          <div class="modal-head">
+            <div>
+              <h3>Tgk. Chiek Oemar Diyan Boarding School</h3>
+              <p>9CXP+H7 Krueng Lamkareung, Kabupaten Aceh Besar, Aceh</p>
+            </div>
+            <button class="icon-btn" data-close="gmaps-modal" title="Tutup">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <iframe
+            title="Google Maps"
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.112762892648!2d95.43339033672639!3d5.399786746366888!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3040404cd68670ed%3A0x43a5c74baf7249f5!2sTgk.%20Chiek%20Oemar%20Diyan%20Boarding%20School!5e0!3m2!1sid!2sid!4v1793512748822!5m2!1sid!2sid"
+            allowfullscreen
+          ></iframe>
+          <div class="modal-foot">
+            <a href="https://maps.app.goo.gl/tD1gUuhmkMMjJH9aA" target="_blank" rel="noopener" class="btn primary">Buka di aplikasi Google Maps</a>
+          </div>
+        </div>
+      </div>
+
+      <div id="loader" class="loader">
+        <div class="spinner"></div>
+        <p>Membangun denah 3D…</p>
+      </div>
+    </div>
+  </body>
+</html>
