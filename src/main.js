@@ -788,13 +788,14 @@ function buildBuildings() {
 
   campusData.buildings.forEach((item) => {
     const locId = item.loc;
-    const locMeta = campusData.locations.find((l) => l.id === locId) || {
+    const locMeta = (locId ? campusData.locations.find((l) => l.id === locId) : null) || {
       name: 'Gedung',
-      floors: 2,
-      roof: 'flat',
+      floors: item.floors || 1,
+      roof: item.roof || 'hip',
     };
 
-    const floors = locMeta.floors || 2;
+    const floors = item.floors || locMeta.floors || 1;
+    const roofType = item.roof || locMeta.roof || 'hip';
     const height = floors * 4.2 + 1.2;
     const shape = createShapeFromPoly(item.outer, item.holes);
     const obb = computeOBB(item.outer);
@@ -840,15 +841,15 @@ function buildBuildings() {
     const cz = item.centroid[1];
     const roofY = height + 0.35;
 
-    if (locMeta.roof === 'mosque') {
+    if (roofType === 'mosque') {
       // 4. Masjid Baburrayyan: Flat Parapet + Emerald Dome + Crescent + Minaret
       buildFlatParapetRoof(buildingGroup, shape, roofY);
       buildMosqueRoof(buildingGroup, cx, cz, roofY + 0.6);
-    } else if (locMeta.roof === 'dome') {
+    } else if (roofType === 'dome') {
       // 17. Musalla Putri: Flat Parapet + Emerald Dome
       buildFlatParapetRoof(buildingGroup, shape, roofY);
       buildDomeRoof(buildingGroup, cx, cz, roofY + 0.5);
-    } else if (locMeta.roof === 'gable' || locMeta.roof === 'hip') {
+    } else if (roofType === 'gable' || roofType === 'hip') {
       // Pitched / Hipped Roof aligned to the building's exact OBB orientation
       buildFlatParapetRoof(buildingGroup, shape, roofY);
       buildOrientedHippedRoof(buildingGroup, obb, roofY + 0.4);
@@ -1258,11 +1259,25 @@ function initFloatingLabels() {
 
     const textSpan = document.createElement('span');
     textSpan.className = 'txt';
-    textSpan.textContent = loc.short || loc.name;
+    // Khusus lokasi 19 (Dapur & Ruang Makan Putri): gedung utama berlabel "Dapur"
+    if (loc.id === 19) {
+      textSpan.textContent = 'Dapur';
+    } else {
+      textSpan.textContent = loc.short || loc.name;
+    }
     el.appendChild(textSpan);
 
+    let posX = loc.x;
+    let posZ = loc.z;
+    if (loc.id === 19) {
+      posX = 0.76;
+      posZ = 161.11;
+    } else if (loc.id === 3) {
+      posX = -28.99;
+      posZ = -190.37;
+    }
     const yOffset = (loc.floors || 2) * 4.2 + 5.8;
-    const worldPos = new THREE.Vector3(loc.x, yOffset, loc.z);
+    const worldPos = new THREE.Vector3(posX, yOffset, posZ);
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1278,6 +1293,38 @@ function initFloatingLabels() {
     if (!b.loc) return;
     const loc = campusData.locations.find((l) => l.id === b.loc);
     if (!loc) return;
+
+    // MTsN (loc 3) & Kantin Putri (loc 20): cukup 1 title utama, lewati sub-label
+    if (b.loc === 3 || b.loc === 20) return;
+
+    // Dapur & Ruang Makan Putri (loc 19): hanya 2 title ("Dapur" & "Ruang Makan Putri")
+    if (b.loc === 19) {
+      // Hanya tampilkan label kedua untuk gedung Ruang Makan Putri (sayap utara, z < 145)
+      // Gedung sayap gudang/dapur belakang (z > 170) tidak memerlukan title terpisah
+      if (b.centroid[1] < 145) {
+        const el = document.createElement('div');
+        el.className = 'label sub-label';
+        el.dataset.id = loc.id;
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'txt';
+        textSpan.textContent = 'Ruang Makan Putri';
+        el.appendChild(textSpan);
+
+        const yOffset = (loc.floors || 2) * 4.2 + 5.2;
+        const worldPos = new THREE.Vector3(b.centroid[0], yOffset, b.centroid[1]);
+
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectAndFocusLocation(loc);
+        });
+
+        container.appendChild(el);
+        labelElements.push({ el, worldPos, loc, isPrimary: false });
+      }
+      return;
+    }
+
     const dist = Math.hypot(b.centroid[0] - loc.x, b.centroid[1] - loc.z);
     // Only add a secondary label if this building is a separate wing (> 18m from primary marker)
     if (dist < 18) return;
