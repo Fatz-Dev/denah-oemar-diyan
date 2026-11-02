@@ -315,6 +315,81 @@ function createCourtTexture(kind, isDark = false) {
   } else if (kind === 'volley') {
     ctx.fillStyle = isDark ? '#3b8945' : '#47a64c';
     ctx.fillRect(0, 0, 256, 512);
+  } else if (kind === 'badminton') {
+    // Concrete perimeter apron / walkway around the twin badminton courts
+    ctx.fillStyle = isDark ? '#cbd5e1' : '#e8eef5';
+    ctx.fillRect(0, 0, 256, 512);
+
+    // Two side-by-side green badminton court pads (top half & bottom half of texture)
+    const courtFill = isDark ? '#2e8540' : '#3ca648';
+    const innerFill = isDark ? '#349648' : '#45b653';
+    const courts = [
+      { x: 14, y: 14, w: 228, h: 228 },
+      { x: 14, y: 270, w: 228, h: 228 },
+    ];
+
+    ctx.strokeStyle = isDark ? 'rgba(248, 250, 252, 0.92)' : '#ffffff';
+    ctx.lineWidth = 4;
+
+    courts.forEach((c) => {
+      // Outer turf pad
+      ctx.fillStyle = courtFill;
+      ctx.fillRect(c.x, c.y, c.w, c.h);
+
+      // Court boundary rectangle (oriented along X axis: 13.4m length, Y axis: 6.1m width)
+      const bx = c.x + 14;
+      const by = c.y + 18;
+      const bw = c.w - 28;
+      const bh = c.h - 36;
+
+      ctx.fillStyle = innerFill;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeRect(bx, by, bw, bh);
+
+      // Doubles & singles sidelines (horizontal lines along court length)
+      ctx.beginPath();
+      ctx.moveTo(bx, by + 16);
+      ctx.lineTo(bx + bw, by + 16);
+      ctx.moveTo(bx, by + bh - 16);
+      ctx.lineTo(bx + bw, by + bh - 16);
+
+      // Back long service lines for doubles (vertical lines near left/right baselines)
+      ctx.moveTo(bx + 16, by);
+      ctx.lineTo(bx + 16, by + bh);
+      ctx.moveTo(bx + bw - 16, by);
+      ctx.lineTo(bx + bw - 16, by + bh);
+
+      // Short service lines flanking the center net (x = midX ± 34)
+      const midX = bx + bw * 0.5;
+      const midY = by + bh * 0.5;
+      ctx.moveTo(midX - 34, by);
+      ctx.lineTo(midX - 34, by + bh);
+      ctx.moveTo(midX + 34, by);
+      ctx.lineTo(midX + 34, by + bh);
+
+      // Center line dividing left and right service courts
+      ctx.moveTo(bx, midY);
+      ctx.lineTo(midX - 34, midY);
+      ctx.moveTo(midX + 34, midY);
+      ctx.lineTo(bx + bw, midY);
+      ctx.stroke();
+
+      // Center net shadow line
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(midX, by - 4);
+      ctx.lineTo(midX, by + bh + 4);
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
   } else {
     ctx.fillStyle = isDark ? '#3a8744' : '#45a249';
     ctx.fillRect(0, 0, 256, 512);
@@ -345,7 +420,7 @@ function createCourtTexture(kind, isDark = false) {
       ctx.strokeRect(92, 16, 72, 34);
       ctx.strokeRect(92, 462, 72, 34);
     }
-  } else if (kind === 'volley' || kind === 'badminton') {
+  } else if (kind === 'volley') {
     // Attack / service lines
     ctx.beginPath();
     ctx.moveTo(16, 176);
@@ -989,7 +1064,34 @@ function buildCourtEquipment(obb, kind, baseY) {
       board.position.set(0, 2.6, zPos + (zPos > 0 ? -0.3 : 0.3));
       equipGroup.add(pole, board);
     });
-  } else if (kind === 'volley' || kind === 'badminton') {
+  } else if (kind === 'badminton') {
+    // Twin side-by-side badminton courts: each court runs along local X (13.4m) and is 6.1m wide along local Z
+    const netSpanZ = obb.d * 0.34;
+    const netMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      transparent: true,
+      opacity: 0.78,
+      roughness: 0.5,
+    });
+    const tapeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+
+    [-obb.d * 0.25, obb.d * 0.25].forEach((czOffset) => {
+      const netMesh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.82, netSpanZ), netMat);
+      netMesh.position.set(0, 1.05, czOffset);
+      equipGroup.add(netMesh);
+
+      const topTape = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, netSpanZ + 0.04), tapeMat);
+      topTape.position.set(0, 1.48, czOffset);
+      equipGroup.add(topTape);
+
+      [-netSpanZ * 0.5, netSpanZ * 0.5].forEach((postZ) => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 1.55, 8), postMat);
+        post.position.set(0, 0.78, czOffset + postZ);
+        post.castShadow = true;
+        equipGroup.add(post);
+      });
+    });
+  } else if (kind === 'volley') {
     const netW = obb.w * 0.82;
     const net = new THREE.Mesh(
       new THREE.BoxGeometry(netW, 0.9, 0.08),
@@ -1071,7 +1173,7 @@ function buildBuildings() {
       // 17. Musalla Putri: Flat Parapet + Emerald Dome + Arched Glass Drum
       buildFlatParapetRoof(buildingGroup, shape, roofY);
       buildDomeRoof(buildingGroup, cx, cz, roofY + 0.5);
-    } else if (roofType === 'gable' || roofType === 'hip') {
+    } else if ((roofType === 'gable' || roofType === 'hip') && item.outer.length <= 4) {
       // Pitched / Hipped Roof aligned to the building's exact OBB orientation
       buildFlatParapetRoof(buildingGroup, shape, roofY);
       buildOrientedHippedRoof(buildingGroup, obb, roofY + 0.4, locId);
@@ -1080,9 +1182,9 @@ function buildBuildings() {
       buildFlatParapetRoof(buildingGroup, shape, roofY);
     }
 
-    // Add 3D Glass Windows, Entrance Portico, Balcony Railings & Rooftop Utilities
+    // Add 3D Glass Windows, Entrance Portico, Balcony Railings & Rooftop Utilities along exact polygon walls
     if (obb && obb.d >= 6 && obb.w >= 4) {
-      buildBuildingArchitecturalDetails(buildingGroup, obb, floors, height, roofType, locId);
+      buildBuildingArchitecturalDetails(buildingGroup, item, obb, floors, height, roofType, locId);
     }
 
     buildingsGroup.add(buildingGroup);
@@ -1098,20 +1200,14 @@ function buildBuildings() {
   buildCampusProps();
 }
 
-function buildBuildingArchitecturalDetails(group, obb, floors, height, roofType, locId) {
-  const detailGroup = new THREE.Group();
-  detailGroup.position.set(obb.cx, 0.35, obb.cz);
-  detailGroup.rotation.y = -obb.angle;
+function buildBuildingArchitecturalDetails(group, item, obb, floors, height, roofType, locId) {
+  const pts = item.outer;
+  if (!pts || pts.length < 3) return;
 
-  const halfW = obb.w * 0.5;
-  const halfD = obb.d * 0.5;
+  const detailGroup = new THREE.Group();
   const isMosque = roofType === 'mosque' || roofType === 'dome';
 
-  // 1. 3D Protruding Glass Window Panels, Frames & Sun-Shading Canopies along both long facades
   const baySpacing = isMosque ? 3.8 : 3.4;
-  const numBays = Math.max(1, Math.min(18, Math.floor((obb.d - 2.6) / baySpacing)));
-  const startZ = -((numBays - 1) * baySpacing) * 0.5;
-
   const winW = 0.08;
   const winH = isMosque ? 2.3 : 1.75;
   const winD = isMosque ? 1.35 : 1.55;
@@ -1119,158 +1215,226 @@ function buildBuildingArchitecturalDetails(group, obb, floors, height, roofType,
   const frameGeo = new THREE.BoxGeometry(winW + 0.06, winH + 0.18, winD + 0.2);
   const sillGeo = new THREE.BoxGeometry(0.26, 0.12, winD + 0.34);
   const shadeGeo = new THREE.BoxGeometry(0.42, 0.1, winD + 0.36);
-
   const glassMaterial = isMosque ? MATS.stainedGlass : MATS.glassPane;
 
-  for (let f = 0; f < floors; f++) {
-    const floorBaseY = f * 4.2;
-    const winCenterY = floorBaseY + 2.15;
+  // Analyze each polygon wall segment so windows, balconies & entrances follow exact L/U-shaped walls
+  const segments = [];
+  let bestEntranceSegIdx = -1;
+  let bestEntranceLen = 0;
 
-    [-1, 1].forEach((sideSign) => {
-      const xWall = sideSign * (halfW + 0.04);
+  for (let i = 0; i < pts.length; i++) {
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % pts.length];
+    const dx = p2[0] - p1[0];
+    const dz = p2[1] - p1[1];
+    const segLen = Math.hypot(dx, dz);
+    if (segLen < 5.0) continue;
+
+    const tx = dx / segLen;
+    const tz = dz / segLen;
+    const mx = (p1[0] + p2[0]) * 0.5;
+    const mz = (p1[1] + p2[1]) * 0.5;
+
+    // Determine true outward unit normal (nx, nz) by testing midpoint offset against polygon interior
+    let nx = tz;
+    let nz = -tx;
+    if (pointInPoly([mx + nx * 0.6, mz + nz * 0.6], pts)) {
+      nx = -tz;
+      nz = tx;
+    }
+
+    // Check if this wall segment abuts another building wing
+    const probeNear = [mx + nx * 2.2, mz + nz * 2.2];
+    const touchesOtherBuilding =
+      campusData.buildings &&
+      campusData.buildings.some((other) => other !== item && pointInPoly(probeNear, other.outer));
+    if (touchesOtherBuilding) continue;
+
+    // Check if outward normal points directly into a sports court (e.g. U-recess facing Badminton/Futsal court)
+    const probeCourt = [mx + nx * 6.5, mz + nz * 6.5];
+    const facesCourt =
+      campusData.fields &&
+      campusData.fields.some((fItem) => pointInPoly(probeCourt, fItem.outer));
+
+    const segIndex = segments.length;
+    segments.push({ mx, mz, tx, tz, nx, nz, segLen, facesCourt });
+
+    if (!facesCourt && segLen >= 9.5 && segLen > bestEntranceLen) {
+      bestEntranceLen = segLen;
+      bestEntranceSegIdx = segIndex;
+    }
+  }
+
+  // Place 3D windows, frames, sills, sunshades, pilasters & entrance portico along each actual wall segment
+  segments.forEach((seg, idx) => {
+    const { mx, mz, tx, tz, nx, nz, segLen, facesCourt } = seg;
+    const isEntranceSeg = idx === bestEntranceSegIdx && !facesCourt;
+
+    const segGroup = new THREE.Group();
+    segGroup.position.set(mx, 0.35, mz);
+    segGroup.rotation.y = Math.atan2(tx, tz);
+
+    // Local +Z aligns with (tx, tz); local +X aligns with (tz, -tx)
+    const sideSign = tz * nx - tx * nz >= 0 ? 1 : -1;
+    const xWall = sideSign * 0.14;
+
+    const numBays = Math.max(1, Math.min(18, Math.floor((segLen - 2.2) / baySpacing)));
+    const startZ = -((numBays - 1) * baySpacing) * 0.5;
+
+    for (let f = 0; f < floors; f++) {
+      const floorBaseY = f * 4.2;
+      const winCenterY = floorBaseY + 2.15;
 
       for (let b = 0; b < numBays; b++) {
-        // Leave central bay on ground floor open for the main glass entrance door on side +1
-        if (f === 0 && sideSign === 1 && b === Math.floor(numBays / 2) && obb.d >= 10) {
+        if (isEntranceSeg && f === 0 && b === Math.floor(numBays / 2) && segLen >= 10) {
           continue;
         }
 
         const zPos = startZ + b * baySpacing;
 
-        // Window frame
         const frameMesh = new THREE.Mesh(frameGeo, MATS.windowFrame);
         frameMesh.position.set(xWall, winCenterY, zPos);
-        detailGroup.add(frameMesh);
+        segGroup.add(frameMesh);
 
-        // Reflective 3D glass pane
         const glassMesh = new THREE.Mesh(glassGeo, glassMaterial);
         glassMesh.position.set(xWall + sideSign * 0.03, winCenterY, zPos);
-        detailGroup.add(glassMesh);
+        segGroup.add(glassMesh);
 
-        // Projecting stone sill at bottom of window
         const sillMesh = new THREE.Mesh(sillGeo, MATS.buildingParapet);
         sillMesh.position.set(xWall + sideSign * 0.08, winCenterY - winH * 0.5 - 0.06, zPos);
-        detailGroup.add(sillMesh);
+        segGroup.add(sillMesh);
 
-        // Upper sun-shading overhang fin (alis jendela)
         const shadeMesh = new THREE.Mesh(shadeGeo, MATS.buildingParapet);
         shadeMesh.position.set(xWall + sideSign * 0.14, winCenterY + winH * 0.5 + 0.08, zPos);
         shadeMesh.castShadow = true;
-        detailGroup.add(shadeMesh);
+        segGroup.add(shadeMesh);
       }
 
-      // 2. Multi-story Balcony Railing & Structural Pilasters (for 2-3 story Dorms & Schools)
-      if (floors >= 2 && f >= 1 && !isMosque && sideSign === 1) {
-        const railLen = Math.max(2, obb.d - 1.6);
+      // Upper-story balcony railing along main exterior facade only (never protruding into courts)
+      if (isEntranceSeg && floors >= 2 && f >= 1 && !isMosque) {
+        const railLen = Math.max(2, segLen - 2.0);
         const railBar = new THREE.Mesh(
           new THREE.BoxGeometry(0.1, 0.12, railLen),
           MATS.windowFrame
         );
-        railBar.position.set(xWall + 0.32, floorBaseY + 1.05, 0);
-        detailGroup.add(railBar);
+        railBar.position.set(xWall + sideSign * 0.32, floorBaseY + 1.05, 0);
+        segGroup.add(railBar);
 
         const balconyDeck = new THREE.Mesh(
           new THREE.BoxGeometry(0.45, 0.16, railLen),
           MATS.buildingParapet
         );
-        balconyDeck.position.set(xWall + 0.18, floorBaseY + 0.05, 0);
-        detailGroup.add(balconyDeck);
+        balconyDeck.position.set(xWall + sideSign * 0.18, floorBaseY + 0.05, 0);
+        segGroup.add(balconyDeck);
       }
-    });
-  }
+    }
 
-  // Vertical structural columns/pilasters along main facade
-  if (obb.d >= 12) {
-    const colSpacing = Math.max(4.5, obb.d / 5);
-    for (let zc = -halfD + 1.2; zc <= halfD - 1.2; zc += colSpacing) {
-      [-1, 1].forEach((sideSign) => {
+    // Vertical structural pilasters along long wall segments
+    if (segLen >= 12) {
+      const colSpacing = Math.max(4.5, segLen / 5);
+      const halfSeg = segLen * 0.5;
+      for (let zc = -halfSeg + 1.2; zc <= halfSeg - 1.2; zc += colSpacing) {
         const pilaster = new THREE.Mesh(
           new THREE.BoxGeometry(0.28, height - 0.2, 0.32),
           MATS.buildingParapet
         );
-        pilaster.position.set(sideSign * (halfW + 0.08), height * 0.5, zc);
-        detailGroup.add(pilaster);
-      });
+        pilaster.position.set(xWall + sideSign * 0.04, height * 0.5, zc);
+        segGroup.add(pilaster);
+      }
     }
-  }
 
-  // 3. Ground-Floor Main Entrance Glass Door & Concrete Portico Canopy
-  if (obb.d >= 9) {
-    const entranceX = halfW + 0.06;
-    const doorW = Math.min(3.2, obb.d * 0.28);
+    // Main Ground-Floor Glass Entrance Door & Concrete Portico Canopy
+    if (isEntranceSeg && segLen >= 9.5) {
+      const doorW = Math.min(3.2, segLen * 0.26);
 
-    // Double glass entrance door
-    const doorFrame = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 2.8, doorW + 0.3),
-      MATS.windowFrame
-    );
-    doorFrame.position.set(entranceX, 1.4, 0);
-    detailGroup.add(doorFrame);
-
-    const doorGlass = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 2.65, doorW),
-      MATS.glassPane
-    );
-    doorGlass.position.set(entranceX + 0.02, 1.4, 0);
-    detailGroup.add(doorGlass);
-
-    // Projecting entrance canopy overhang + 2 support pillars + entrance steps
-    const canopyDepth = 1.65;
-    const canopy = new THREE.Mesh(
-      new THREE.BoxGeometry(canopyDepth, 0.26, doorW + 1.4),
-      MATS.buildingParapet
-    );
-    canopy.position.set(entranceX + canopyDepth * 0.5, 3.25, 0);
-    canopy.castShadow = true;
-    detailGroup.add(canopy);
-
-    const stepPlatform = new THREE.Mesh(
-      new THREE.BoxGeometry(canopyDepth + 0.3, 0.22, doorW + 1.6),
-      MATS.buildingParapet
-    );
-    stepPlatform.position.set(entranceX + canopyDepth * 0.5, 0.11, 0);
-    detailGroup.add(stepPlatform);
-
-    [-1, 1].forEach((pSign) => {
-      const col = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.14, 0.16, 3.1, 10),
+      const doorFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 2.8, doorW + 0.3),
         MATS.windowFrame
       );
-      col.position.set(entranceX + canopyDepth - 0.2, 1.6, pSign * (doorW * 0.5 + 0.45));
-      col.castShadow = true;
-      detailGroup.add(col);
-    });
-  }
+      doorFrame.position.set(xWall, 1.4, 0);
+      segGroup.add(doorFrame);
 
-  // 4. Rooftop Mechanical Utilities (Outdoor AC Units, Water Tanks / Toren Air)
-  if (!isMosque && obb.w >= 6 && obb.d >= 10) {
-    const deckY = height + 0.92;
-    // Outdoor HVAC / AC units tucked along the back parapet edge
-    const numAC = Math.min(4, Math.max(1, Math.floor(obb.d / 11)));
-    for (let i = 0; i < numAC; i++) {
-      const acZ = -halfD * 0.55 + i * 2.4;
-      const acX = -halfW * 0.58;
-      const acBox = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.75, 1.15), MATS.acUnit);
-      acBox.position.set(acX, deckY + 0.38, acZ);
-      acBox.castShadow = true;
-      detailGroup.add(acBox);
+      const doorGlass = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 2.65, doorW),
+        MATS.glassPane
+      );
+      doorGlass.position.set(xWall + sideSign * 0.02, 1.4, 0);
+      segGroup.add(doorGlass);
+
+      const canopyDepth = 1.65;
+      const canopy = new THREE.Mesh(
+        new THREE.BoxGeometry(canopyDepth, 0.26, doorW + 1.4),
+        MATS.buildingParapet
+      );
+      canopy.position.set(xWall + sideSign * (canopyDepth * 0.5), 3.25, 0);
+      canopy.castShadow = true;
+      segGroup.add(canopy);
+
+      const stepPlatform = new THREE.Mesh(
+        new THREE.BoxGeometry(canopyDepth + 0.3, 0.22, doorW + 1.6),
+        MATS.buildingParapet
+      );
+      stepPlatform.position.set(xWall + sideSign * (canopyDepth * 0.5), 0.11, 0);
+      segGroup.add(stepPlatform);
+
+      [-1, 1].forEach((pSign) => {
+        const col = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.14, 0.16, 3.1, 10),
+          MATS.windowFrame
+        );
+        col.position.set(
+          xWall + sideSign * (canopyDepth - 0.2),
+          1.6,
+          pSign * (doorW * 0.5 + 0.45)
+        );
+        col.castShadow = true;
+        segGroup.add(col);
+      });
     }
 
-    // Blue cylindrical water tank (Toren Air) on dormitories, canteen, and kitchen buildings
+    detailGroup.add(segGroup);
+  });
+
+  // Rooftop Mechanical Utilities (Outdoor AC Units & Water Tanks) verified inside building polygon
+  if (!isMosque && obb.w >= 6 && obb.d >= 10 && bestEntranceSegIdx >= 0) {
+    const mainSeg = segments[bestEntranceSegIdx];
+    const deckY = height + 1.27;
+    // Step inward from the longest exterior wall so rooftop equipment is always over solid roof
+    const inX = -mainSeg.nx;
+    const inZ = -mainSeg.nz;
+
+    const numAC = Math.min(4, Math.max(1, Math.floor(mainSeg.segLen / 12)));
+    for (let i = 0; i < numAC; i++) {
+      const along = (i - (numAC - 1) * 0.5) * 2.5;
+      const wx = mainSeg.mx + mainSeg.tx * along + inX * 4.2;
+      const wz = mainSeg.mz + mainSeg.tz * along + inZ * 4.2;
+      if (pointInPoly([wx, wz], pts)) {
+        const acBox = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.75, 1.15), MATS.acUnit);
+        acBox.position.set(wx, deckY + 0.38, wz);
+        acBox.rotation.y = Math.atan2(mainSeg.tx, mainSeg.tz);
+        acBox.castShadow = true;
+        detailGroup.add(acBox);
+      }
+    }
+
     if ([5, 6, 9, 12, 15, 18, 19, 20, 21].includes(locId)) {
-      const tankGroup = new THREE.Group();
-      tankGroup.position.set(-halfW * 0.45, deckY, halfD * 0.52);
+      const txPos = mainSeg.mx - mainSeg.tx * (mainSeg.segLen * 0.22) + inX * 4.8;
+      const tzPos = mainSeg.mz - mainSeg.tz * (mainSeg.segLen * 0.22) + inZ * 4.8;
+      if (pointInPoly([txPos, tzPos], pts)) {
+        const tankGroup = new THREE.Group();
+        tankGroup.position.set(txPos, deckY, tzPos);
 
-      const stand = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 1.3), MATS.lampPole);
-      stand.position.y = 0.45;
-      tankGroup.add(stand);
+        const stand = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 1.3), MATS.lampPole);
+        stand.position.y = 0.45;
+        tankGroup.add(stand);
 
-      const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 1.45, 14), MATS.waterTank);
-      tank.position.y = 1.62;
-      tank.castShadow = true;
-      tankGroup.add(tank);
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 1.45, 14), MATS.waterTank);
+        tank.position.y = 1.62;
+        tank.castShadow = true;
+        tankGroup.add(tank);
 
-      detailGroup.add(tankGroup);
+        detailGroup.add(tankGroup);
+      }
     }
   }
 
@@ -2109,7 +2273,7 @@ function initFloatingLabels() {
       posX = -28.99;
       posZ = -190.37;
     }
-    const yOffset = (loc.floors || 2) * 4.2 + 5.8;
+    const yOffset = loc.kind === 'field' ? 3.6 : (loc.floors || 2) * 4.2 + 5.8;
     const worldPos = new THREE.Vector3(posX, yOffset, posZ);
 
     el.addEventListener('click', (e) => {
