@@ -177,16 +177,19 @@ function smoothstep(edge0, edge1, val) {
 
 // Smooth architectural terrain elevation (in meters) for the rising northern & western campus sector
 function getTerrainElevation(x, z) {
-  // 1. Gradual rise from Gerbang Utama (z = -268, 0.0m) up toward Asrama Putra & Bulu Tangkis (z = -110, +5.6m)
-  const riseFromNorthGate = smoothstep(-268, -108, z);
+  // Gradual steady rise across the northern campus sector (from z = +48 north of Lapangan Bola
+  // climbing steadily through Lapangan Basket/Tugu Globe/Asrama Putra #9 -> Food Court/Asrama Putra #6/Bulu Tangkis
+  // -> Masjid/Lapangan Voli/MTsN -> Pos Satpam & Gerbang Utama up to +16.8m)
+  const northClimb = smoothstep(48, -280, z);
+  if (northClimb <= 0) return 0;
 
-  // 2. Smooth plateau across the central-northern sector and gentle transition down south of Tugu Globe / Basket
-  const fadeTowardSouth = 1.0 - smoothstep(-22, 48, z);
+  // Subtle west-to-east crown so the western dormitory ridge is slightly higher than the eastern edge
+  const crossCrown = 0.92 + 0.08 * smoothstep(35, -185, x);
+  const rawElev = 16.8 * northClimb * crossCrown;
 
-  // 3. West-to-East ridge profile (higher on Asrama Putra west wing, gentler on MTsN / Food Court east wing)
-  const westProfile = 0.72 + 0.28 * (1.0 - smoothstep(-155, -10, x));
-
-  return 5.6 * riseFromNorthGate * fadeTowardSouth * westProfile;
+  // Soft architectural contour terrace modulation (stepped contour inflection every ~2.8m of rise)
+  const terraceWave = 0.24 * Math.sin((rawElev / 2.8) * Math.PI * 2);
+  return Math.max(0, rawElev + terraceWave * smoothstep(0, 2.5, rawElev));
 }
 
 // Compute min, max, and stabilized platform elevation for a building or sports court polygon
@@ -1069,6 +1072,7 @@ function buildBoundaryRibbon(pts) {
 
       const segWrap = new THREE.Group();
       segWrap.position.set(mx, my + 0.35, mz);
+      segWrap.rotation.order = 'YXZ';
       segWrap.rotation.y = angleY;
       segWrap.rotation.x = -pitch;
 
@@ -1996,32 +2000,40 @@ function buildConcretePerimeterFence(gateLoc) {
         const sz2 = z1 + dz * t1;
         const midX = (sx1 + sx2) * 0.5;
         const midZ = (sz1 + sz2) * 0.5;
-        const baseY = getTerrainElevation(midX, midZ) + 0.35;
+        const y1 = getTerrainElevation(sx1, sz1);
+        const y2 = getTerrainElevation(sx2, sz2);
+        const baseY = (y1 + y2) * 0.5 + 0.35;
+        const pitch = Math.atan2(y2 - y1, subLen);
+
+        const segWrap = new THREE.Group();
+        segWrap.position.set(midX, baseY, midZ);
+        segWrap.rotation.order = 'YXZ';
+        segWrap.rotation.y = angle;
+        segWrap.rotation.x = -pitch;
 
         // Main reinforced concrete wall panel
-        const wallGeo = new THREE.BoxGeometry(wallThick, wallH, subLen + 0.08);
+        const wallGeo = new THREE.BoxGeometry(wallThick, wallH, subLen + 0.12);
         const wallMesh = new THREE.Mesh(wallGeo, MATS.concreteFenceWall);
-        wallMesh.position.set(midX, baseY + wallH * 0.5, midZ);
-        wallMesh.rotation.y = angle;
+        wallMesh.position.y = wallH * 0.5;
         wallMesh.castShadow = true;
         wallMesh.receiveShadow = true;
-        fenceGroup.add(wallMesh);
+        segWrap.add(wallMesh);
 
         // Deep bottom concrete foundation plinth beam anchored into sloped ground
-        const plinthGeo = new THREE.BoxGeometry(wallThick + 0.16, 1.05, subLen + 0.12);
+        const plinthGeo = new THREE.BoxGeometry(wallThick + 0.16, 1.15, subLen + 0.16);
         const plinthMesh = new THREE.Mesh(plinthGeo, MATS.concreteFencePillar);
-        plinthMesh.position.set(midX, baseY - 0.05, midZ);
-        plinthMesh.rotation.y = angle;
+        plinthMesh.position.y = -0.05;
         plinthMesh.receiveShadow = true;
-        fenceGroup.add(plinthMesh);
+        segWrap.add(plinthMesh);
 
         // Top concrete coping cap rail
-        const copingGeo = new THREE.BoxGeometry(wallThick + 0.16, 0.22, subLen + 0.12);
+        const copingGeo = new THREE.BoxGeometry(wallThick + 0.16, 0.22, subLen + 0.16);
         const copingMesh = new THREE.Mesh(copingGeo, MATS.buildingParapet);
-        copingMesh.position.set(midX, baseY + wallH + 0.11, midZ);
-        copingMesh.rotation.y = angle;
+        copingMesh.position.y = wallH + 0.11;
         copingMesh.castShadow = true;
-        fenceGroup.add(copingMesh);
+        segWrap.add(copingMesh);
+
+        fenceGroup.add(segWrap);
 
         if (s < numSub - 1) {
           addFencePillar(sx2, sz2, angle);
