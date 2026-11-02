@@ -175,21 +175,21 @@ function smoothstep(edge0, edge1, val) {
   return t * t * (3 - 2 * t);
 }
 
-// Smooth architectural terrain elevation (in meters) for the rising northern & western campus sector
+// Smooth architectural terrain elevation (in meters) separating the lower southern campus
+// from the elevated northern sector starting along the horizontal line of Tugu Globe (z ≈ -42)
+// up to the end of Gerbang Utama and the northern entrance road (z ≈ -295).
 function getTerrainElevation(x, z) {
-  // Gradual steady rise across the northern campus sector (from z = +48 north of Lapangan Bola
-  // climbing steadily through Lapangan Basket/Tugu Globe/Asrama Putra #9 -> Food Court/Asrama Putra #6/Bulu Tangkis
-  // -> Masjid/Lapangan Voli/MTsN -> Pos Satpam & Gerbang Utama up to +16.8m)
-  const northClimb = smoothstep(48, -280, z);
-  if (northClimb <= 0) return 0;
+  if (z >= -28) return 0;
 
-  // Subtle west-to-east crown so the western dormitory ridge is slightly higher than the eastern edge
-  const crossCrown = 0.92 + 0.08 * smoothstep(35, -185, x);
-  const rawElev = 16.8 * northClimb * crossCrown;
+  // 1. Distinct, moderately steep transition slope aligned horizontally with Tugu Globe (z = -28 to -68)
+  // clearly separating the lower campus (0.0m) from the upper northern plateau (+5.8m)
+  const globeStepRise = smoothstep(-28, -68, z);
 
-  // Soft architectural contour terrace modulation (stepped contour inflection every ~2.8m of rise)
-  const terraceWave = 0.24 * Math.sin((rawElev / 2.8) * Math.PI * 2);
-  return Math.max(0, rawElev + terraceWave * smoothstep(0, 2.5, rawElev));
+  // 2. Gentle, steady upward grade from north of Tugu Globe (-68) to the tip of the Main Gate road (-295)
+  // adding +2.4m so the terrain reaches a proportional +8.2m at the far northern road tip
+  const northGradualRise = smoothstep(-68, -295, z);
+
+  return 5.8 * globeStepRise + 2.4 * northGradualRise;
 }
 
 // Compute min, max, and stabilized platform elevation for a building or sports court polygon
@@ -212,7 +212,8 @@ function getFootprintElevationStats(ring) {
 }
 
 // Subdivide large triangles in XZ plane and elevate vertices by getTerrainElevation(x, z)
-function tessellateAndElevateXZGeometry(geometry, maxEdgeLen = 8.5, isPedestalSlab = false) {
+function tessellateAndElevateXZGeometry(geometry, maxEdgeLen = 5.5, isPedestalSlab = false) {
+  const effectiveMaxLen = Math.min(maxEdgeLen, 5.5);
   const srcGeo = geometry.index ? geometry.toNonIndexed() : geometry;
   const posAttr = srcGeo.attributes.position;
   const count = posAttr.count;
@@ -234,7 +235,7 @@ function tessellateAndElevateXZGeometry(geometry, maxEdgeLen = 8.5, isPedestalSl
   }
 
   const outTris = [];
-  const maxLenSq = maxEdgeLen * maxEdgeLen;
+  const maxLenSq = effectiveMaxLen * effectiveMaxLen;
 
   while (queue.length > 0) {
     const tri = queue.pop();
