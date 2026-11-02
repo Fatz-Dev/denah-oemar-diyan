@@ -170,6 +170,128 @@ function pointInPoly(pt, poly) {
   return inside;
 }
 
+function smoothstep(edge0, edge1, val) {
+  const t = Math.max(0, Math.min(1, (val - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+// Smooth architectural terrain elevation (in meters) for the rising northern & western campus sector
+function getTerrainElevation(x, z) {
+  // 1. Gradual rise from Gerbang Utama (z = -268, 0.0m) up toward Asrama Putra & Bulu Tangkis (z = -110, +5.6m)
+  const riseFromNorthGate = smoothstep(-268, -108, z);
+
+  // 2. Smooth plateau across the central-northern sector and gentle transition down south of Tugu Globe / Basket
+  const fadeTowardSouth = 1.0 - smoothstep(-22, 48, z);
+
+  // 3. West-to-East ridge profile (higher on Asrama Putra west wing, gentler on MTsN / Food Court east wing)
+  const westProfile = 0.72 + 0.28 * (1.0 - smoothstep(-155, -10, x));
+
+  return 5.6 * riseFromNorthGate * fadeTowardSouth * westProfile;
+}
+
+// Compute min, max, and stabilized platform elevation for a building or sports court polygon
+function getFootprintElevationStats(ring) {
+  if (!ring || ring.length === 0) return { minY: 0, maxY: 0, platformY: 0 };
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let sumY = 0;
+
+  for (let i = 0; i < ring.length; i++) {
+    const h = getTerrainElevation(ring[i][0], ring[i][1]);
+    if (h < minY) minY = h;
+    if (h > maxY) maxY = h;
+    sumY += h;
+  }
+  const avgY = sumY / ring.length;
+  // Sit level near the upper terrain contact line so sloped ground never clips through floors or courts
+  const platformY = maxY * 0.75 + avgY * 0.25;
+  return { minY, maxY, avgY, platformY };
+}
+
+// Subdivide large triangles in XZ plane and elevate vertices by getTerrainElevation(x, z)
+function tessellateAndElevateXZGeometry(geometry, maxEdgeLen = 8.5, isPedestalSlab = false) {
+  const srcGeo = geometry.index ? geometry.toNonIndexed() : geometry;
+  const posAttr = srcGeo.attributes.position;
+  const count = posAttr.count;
+
+  // Work queue of triangles: each entry is [x0,y0,z0, x1,y1,z1, x2,y2,z2]
+  const queue = [];
+  for (let i = 0; i < count; i += 3) {
+    queue.push([
+      posAttr.getX(i),
+      posAttr.getY(i),
+      posAttr.getZ(i),
+      posAttr.getX(i + 1),
+      posAttr.getY(i + 1),
+      posAttr.getZ(i + 1),
+      posAttr.getX(i + 2),
+      posAttr.getY(i + 2),
+      posAttr.getZ(i + 2),
+    ]);
+  }
+
+  const outTris = [];
+  const maxLenSq = maxEdgeLen * maxEdgeLen;
+
+  while (queue.length > 0) {
+    const tri = queue.pop();
+    const [x0, y0, z0, x1, y1, z1, x2, y2, z2] = tri;
+
+    const d01 = (x1 - x0) * (x1 - x0) + (z1 - z0) * (z1 - z0);
+    const d12 = (x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1);
+    const d20 = (x0 - x2) * (x0 - x2) + (z0 - z2) * (z0 - z2);
+
+    if (d01 <= maxLenSq && d12 <= maxLenSq && d20 <= maxLenSq) {
+      outTris.push(tri);
+      continue;
+    }
+
+    // Bisect the longest 2D (XZ) edge at its exact midpoint
+    if (d01 >= d12 && d01 >= d20) {
+      const mx = (x0 + x1) * 0.5;
+      const my = (y0 + y1) * 0.5;
+      const mz = (z0 + z1) * 0.5;
+      queue.push([x0, y0, z0, mx, my, mz, x2, y2, z2]);
+      queue.push([mx, my, mz, x1, y1, z1, x2, y2, z2]);
+    } else if (d12 >= d01 && d12 >= d20) {
+      const mx = (x1 + x2) * 0.5;
+      const my = (y1 + y2) * 0.5;
+      const mz = (z1 + z2) * 0.5;
+      queue.push([x0, y0, z0, x1, y1, z1, mx, my, mz]);
+      queue.push([x0, y0, z0, mx, my, mz, x2, y2, z2]);
+    } else {
+      const mx = (x2 + x0) * 0.5;
+      const my = (y2 + y0) * 0.5;
+      const mz = (z2 + z0) * 0.5;
+      queue.push([x0, y0, z0, x1, y1, z1, mx, my, mz]);
+      queue.push([mx, my, mz, x1, y1, z1, x2, y2, z2]);
+    }
+  }
+
+  const newPositions = new Float32Array(outTris.length * 9);
+  let ptr = 0;
+  for (let i = 0; i < outTris.length; i++) {
+    const t = outTris[i];
+    for (let v = 0; v < 9; v += 3) {
+      const vx = t[v];
+      let vy = t[v + 1];
+      const vz = t[v + 2];
+      if (!isPedestalSlab || vy > 8.0) {
+        vy += getTerrainElevation(vx, vz);
+      }
+      newPositions[ptr++] = vx;
+      newPositions[ptr++] = vy;
+      newPositions[ptr++] = vz;
+    }
+  }
+
+  geometry.setIndex(null);
+  geometry.clearGroups();
+  geometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 // Finds minimum-area oriented bounding box (OBB) in XZ plane for any polygon ring
 function computeOBB(ring) {
   const candidateAngles = new Set();
@@ -847,7 +969,7 @@ function buildDioramaBase() {
   const shape = createShapeFromPoly(boundary);
 
   // 1. Thick Beveled Architectural Diorama Pedestal Slab
-  // Top of slab sits at y = -0.6 so it never z-fights with ground surface at y = 0.0
+  // Top of slab follows contoured terrain at y = elev - 0.6 while bottom stays flat at y = -24.2
   const slabDepth = 22;
   const slabGeo = new THREE.ExtrudeGeometry(shape, {
     depth: slabDepth,
@@ -857,7 +979,7 @@ function buildDioramaBase() {
     bevelSegments: 2,
   });
   slabGeo.rotateX(-Math.PI / 2);
-  slabGeo.computeVertexNormals();
+  tessellateAndElevateXZGeometry(slabGeo, 10.0, true);
 
   dioramaSlabMesh = new THREE.Mesh(slabGeo, MATS.slabWall);
   dioramaSlabMesh.position.y = -(slabDepth + 2.2);
@@ -865,24 +987,26 @@ function buildDioramaBase() {
   dioramaSlabMesh.castShadow = true;
   dioramaGroup.add(dioramaSlabMesh);
 
-  // Bottom dark plinth skirt
+  // Bottom dark plinth skirt (remains completely flat at base of pedestal)
   const skirtGeo = new THREE.ExtrudeGeometry(shape, { depth: 5.5, bevelEnabled: false });
   skirtGeo.rotateX(-Math.PI / 2);
   slabSkirtMesh = new THREE.Mesh(skirtGeo, MATS.slabSkirt);
   slabSkirtMesh.position.y = -(slabDepth + 7.2);
   dioramaGroup.add(slabSkirtMesh);
 
-  // 2. Illustrated Top Campus Ground (Top surface at y = 0.00)
+  // 2. Illustrated Top Campus Ground (Top surface follows terrain elevation at y = elev + 0.00)
   const topGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.8, bevelEnabled: false });
   topGeo.rotateX(-Math.PI / 2);
+  tessellateAndElevateXZGeometry(topGeo, 8.5, false);
   groundIllustratedMesh = new THREE.Mesh(topGeo, MATS.ground);
   groundIllustratedMesh.position.y = -0.8;
   groundIllustratedMesh.receiveShadow = true;
   dioramaGroup.add(groundIllustratedMesh);
 
-  // 3. Real Satellite Orthophoto Surface (Top surface at y = +0.04)
+  // 3. Real Satellite Orthophoto Surface (Top surface follows terrain elevation at y = elev + 0.04)
   const satGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.84, bevelEnabled: false });
   satGeo.rotateX(-Math.PI / 2);
+  tessellateAndElevateXZGeometry(satGeo, 8.5, false);
   applySatelliteUVs(satGeo, campusData.satellite);
 
   groundSatelliteMesh = new THREE.Mesh(satGeo, MATS.satellite);
@@ -891,12 +1015,13 @@ function buildDioramaBase() {
   groundSatelliteMesh.visible = STATE.mode !== 'illustrated';
   dioramaGroup.add(groundSatelliteMesh);
 
-  // 4. Forest Woodland Floor Tint Polygons (Top surface at y = +0.08)
+  // 4. Forest Woodland Floor Tint Polygons (Top surface follows terrain at y = elev + 0.08)
   if (campusData.forest) {
     campusData.forest.forEach((fPoly) => {
       const fShape = createShapeFromPoly(fPoly.outer, fPoly.holes);
       const fGeo = new THREE.ExtrudeGeometry(fShape, { depth: 0.08, bevelEnabled: false });
       fGeo.rotateX(-Math.PI / 2);
+      tessellateAndElevateXZGeometry(fGeo, 8.5, false);
       const fMesh = new THREE.Mesh(fGeo, MATS.forestFloor);
       fMesh.position.y = 0.0;
       fMesh.receiveShadow = true;
@@ -924,14 +1049,40 @@ function buildBoundaryRibbon(pts) {
     const dist = Math.hypot(dx, dz);
     if (dist < 0.2) continue;
 
-    const segment = new THREE.Mesh(new THREE.BoxGeometry(width, height, dist + width * 0.2), MATS.boundaryRed);
-    segment.position.set((p1[0] + p2[0]) / 2, 0.35, (p1[1] + p2[1]) / 2);
-    segment.rotation.y = Math.atan2(dx, dz);
-    segment.receiveShadow = true;
-    group.add(segment);
+    const numSub = Math.max(1, Math.ceil(dist / 7.5));
+    const subLen = dist / numSub;
+    const angleY = Math.atan2(dx, dz);
+
+    for (let s = 0; s < numSub; s++) {
+      const t0 = s / numSub;
+      const t1 = (s + 1) / numSub;
+      const sx1 = p1[0] + dx * t0;
+      const sz1 = p1[1] + dz * t0;
+      const sx2 = p1[0] + dx * t1;
+      const sz2 = p1[1] + dz * t1;
+      const mx = (sx1 + sx2) * 0.5;
+      const mz = (sz1 + sz2) * 0.5;
+      const y1 = getTerrainElevation(sx1, sz1);
+      const y2 = getTerrainElevation(sx2, sz2);
+      const my = (y1 + y2) * 0.5;
+      const pitch = Math.atan2(y2 - y1, subLen);
+
+      const segWrap = new THREE.Group();
+      segWrap.position.set(mx, my + 0.35, mz);
+      segWrap.rotation.y = angleY;
+      segWrap.rotation.x = -pitch;
+
+      const segment = new THREE.Mesh(
+        new THREE.BoxGeometry(width, height, subLen + width * 0.16),
+        MATS.boundaryRed
+      );
+      segment.receiveShadow = true;
+      segWrap.add(segment);
+      group.add(segWrap);
+    }
 
     const corner = new THREE.Mesh(new THREE.CylinderGeometry(width * 0.5, width * 0.5, height, 12), MATS.boundaryRed);
-    corner.position.set(p1[0], 0.35, p1[1]);
+    corner.position.set(p1[0], getTerrainElevation(p1[0], p1[1]) + 0.35, p1[1]);
     corner.receiveShadow = true;
     group.add(corner);
   }
@@ -942,23 +1093,25 @@ function buildBoundaryRibbon(pts) {
 function buildPerimeterAsphaltRoad() {
   if (!campusData.roadsMain) return;
 
-  // Shoulder layer: top surface at y = +0.22
+  // Shoulder layer: top surface at y = elev + 0.22
   campusData.roadsMain.forEach((item) => {
     const shoulderShape = createShapeFromPoly(item.outer, item.holes);
     const shoulderGeo = new THREE.ExtrudeGeometry(shoulderShape, { depth: 0.16, bevelEnabled: false });
     shoulderGeo.rotateX(-Math.PI / 2);
+    tessellateAndElevateXZGeometry(shoulderGeo, 7.5, false);
     const shoulderMesh = new THREE.Mesh(shoulderGeo, MATS.roadShoulder);
     shoulderMesh.position.y = 0.06;
     shoulderMesh.receiveShadow = true;
     roadsGroup.add(shoulderMesh);
   });
 
-  // Black asphalt core layer: top surface at y = +0.34
+  // Black asphalt core layer: top surface at y = elev + 0.34
   if (campusData.roadsCore) {
     campusData.roadsCore.forEach((item) => {
       const roadShape = createShapeFromPoly(item.outer, item.holes);
       const roadGeo = new THREE.ExtrudeGeometry(roadShape, { depth: 0.24, bevelEnabled: false });
       roadGeo.rotateX(-Math.PI / 2);
+      tessellateAndElevateXZGeometry(roadGeo, 7.5, false);
       const roadMesh = new THREE.Mesh(roadGeo, MATS.roadAsphalt);
       roadMesh.position.y = 0.10;
       roadMesh.receiveShadow = true;
@@ -973,17 +1126,19 @@ function buildRivers() {
   campusData.rivers.forEach((item) => {
     const shape = createShapeFromPoly(item.outer, item.holes);
 
-    // River bank: top surface at y = +0.16
+    // River bank: top surface at y = elev + 0.16
     const bankGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.12, bevelEnabled: false });
     bankGeo.rotateX(-Math.PI / 2);
+    tessellateAndElevateXZGeometry(bankGeo, 8.0, false);
     const bankMesh = new THREE.Mesh(bankGeo, MATS.riverBank);
     bankMesh.position.y = 0.04;
     bankMesh.receiveShadow = true;
     riversGroup.add(bankMesh);
 
-    // River water surface: top surface at y = +0.24
+    // River water surface: top surface at y = elev + 0.24
     const riverGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: false });
     riverGeo.rotateX(-Math.PI / 2);
+    tessellateAndElevateXZGeometry(riverGeo, 8.0, false);
     const riverMesh = new THREE.Mesh(riverGeo, MATS.riverWater);
     riverMesh.position.y = 0.06;
     riverMesh.receiveShadow = true;
@@ -997,17 +1152,19 @@ function buildYellowRoads() {
   campusData.roadsInternal.forEach((item) => {
     const shape = createShapeFromPoly(item.outer, item.holes);
 
-    // Subtle border: top surface at y = +0.30
+    // Subtle border: top surface at y = elev + 0.30
     const borderGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.20, bevelEnabled: false });
     borderGeo.rotateX(-Math.PI / 2);
+    tessellateAndElevateXZGeometry(borderGeo, 7.0, false);
     const borderMesh = new THREE.Mesh(borderGeo, MATS.roadYellowBorder);
     borderMesh.position.y = 0.10;
     borderMesh.receiveShadow = true;
     roadsGroup.add(borderMesh);
 
-    // Vivid yellow internal road: top surface at y = +0.40
+    // Vivid yellow internal road: top surface at y = elev + 0.40
     const roadGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.28, bevelEnabled: false });
     roadGeo.rotateX(-Math.PI / 2);
+    tessellateAndElevateXZGeometry(roadGeo, 7.0, false);
     const roadMesh = new THREE.Mesh(roadGeo, MATS.roadYellow);
     roadMesh.position.y = 0.12;
     roadMesh.receiveShadow = true;
@@ -1023,8 +1180,25 @@ function buildFields() {
     const locMeta = campusData.locations.find((l) => l.id === locId) || {};
     const courtKind = locMeta.court || (locId === 23 ? 'soccer' : 'lawn');
 
+    const { minY, platformY } = getFootprintElevationStats(item.outer);
     const obb = computeOBB(item.outer);
     const shape = createShapeFromPoly(item.outer, item.holes);
+
+    // Stabilized horizontal foundation sub-base under the court so it never floats on sloped terrain
+    const foundationDepth = Math.max(0.8, platformY - minY + 1.1);
+    const foundGeo = new THREE.ExtrudeGeometry(shape, {
+      depth: foundationDepth,
+      bevelEnabled: true,
+      bevelThickness: 0.06,
+      bevelSize: 0.14,
+      bevelSegments: 1,
+    });
+    foundGeo.rotateX(-Math.PI / 2);
+    const foundMesh = new THREE.Mesh(foundGeo, MATS.concreteFencePillar);
+    foundMesh.position.y = platformY + 0.14 - foundationDepth;
+    foundMesh.receiveShadow = true;
+    fieldsGroup.add(foundMesh);
+
     const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.34, bevelEnabled: false });
     geo.rotateX(-Math.PI / 2);
     applyOrientedBoxUVs(geo, obb);
@@ -1040,14 +1214,14 @@ function buildFields() {
     mat.userData = { texLight, texDark };
 
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.y = 0.12; // Top surface at y = +0.46
+    mesh.position.y = platformY + 0.14; // Top surface at y = platformY + 0.48
     mesh.receiveShadow = true;
     mesh.userData = { locationId: locId };
     interactiveMeshes.push(mesh);
     fieldsGroup.add(mesh);
 
-    // Add 3D court equipment (soccer goals, basketball hoops, nets)
-    buildCourtEquipment(obb, courtKind, 0.46);
+    // Add 3D court equipment (soccer goals, basketball hoops, nets) at stabilized court surface
+    buildCourtEquipment(obb, courtKind, platformY + 0.48);
   });
 }
 
@@ -1140,9 +1314,27 @@ function buildBuildings() {
     const height = floors * 4.2 + 1.2;
     const shape = createShapeFromPoly(item.outer, item.holes);
     const obb = computeOBB(item.outer);
+    const { minY, platformY } = getFootprintElevationStats(item.outer);
 
     const buildingGroup = new THREE.Group();
+    buildingGroup.position.y = platformY;
     buildingGroup.userData = { locationId: locId };
+
+    // Architectural Foundation Plinth (Sub-Base) anchoring the horizontal building into sloped terrain
+    const plinthDepth = Math.max(1.2, platformY - minY + 1.5);
+    const plinthGeo = new THREE.ExtrudeGeometry(shape, {
+      depth: plinthDepth,
+      bevelEnabled: true,
+      bevelThickness: 0.08,
+      bevelSize: 0.22,
+      bevelSegments: 1,
+    });
+    plinthGeo.rotateX(-Math.PI / 2);
+    const plinthMesh = new THREE.Mesh(plinthGeo, MATS.concreteFencePillar);
+    plinthMesh.position.y = 0.35 - plinthDepth;
+    plinthMesh.receiveShadow = true;
+    plinthMesh.castShadow = true;
+    buildingGroup.add(plinthMesh);
 
     // Clean architectural massing extruded directly from the exact polygon
     const wallGeo = new THREE.ExtrudeGeometry(shape, {
@@ -1679,8 +1871,9 @@ function buildMainEntranceGate() {
   const loc = campusData.locations.find((l) => l.id === 1);
   if (!loc) return;
 
+  const gateY = getTerrainElevation(loc.x, loc.z);
   const group = new THREE.Group();
-  group.position.set(loc.x, 0.35, loc.z);
+  group.position.set(loc.x, gateY + 0.35, loc.z);
   group.rotation.y = 0.28;
 
   const archMat = new THREE.MeshStandardMaterial({ color: 0x1b843f, roughness: 0.35, metalness: 0.25 });
@@ -1760,20 +1953,21 @@ function buildConcretePerimeterFence(gateLoc) {
 
   const wallH = 2.35;
   const wallThick = 0.42;
-  const pillarGeo = new THREE.BoxGeometry(0.68, 2.85, 0.68);
+  const pillarGeo = new THREE.BoxGeometry(0.68, 3.25, 0.68);
   const pillarCapGeo = new THREE.ConeGeometry(0.56, 0.38, 4);
   pillarCapGeo.rotateY(Math.PI / 4);
 
   function addFencePillar(x, z, rotY = 0) {
+    const baseY = getTerrainElevation(x, z) + 0.35;
     const pMesh = new THREE.Mesh(pillarGeo, MATS.concreteFencePillar);
-    pMesh.position.set(x, 0.35 + 1.425, z);
+    pMesh.position.set(x, baseY + 1.225, z);
     pMesh.rotation.y = rotY;
     pMesh.castShadow = true;
     pMesh.receiveShadow = true;
     fenceGroup.add(pMesh);
 
     const capMesh = new THREE.Mesh(pillarCapGeo, MATS.buildingParapet);
-    capMesh.position.set(x, 0.35 + 2.85 + 0.19, z);
+    capMesh.position.set(x, baseY + 2.85 + 0.19, z);
     capMesh.rotation.y = rotY;
     fenceGroup.add(capMesh);
   }
@@ -1788,42 +1982,50 @@ function buildConcretePerimeterFence(gateLoc) {
       if (segLen < 0.4) continue;
 
       const angle = Math.atan2(dx, dz);
-      const midX = (x1 + x2) * 0.5;
-      const midZ = (z1 + z2) * 0.5;
+      const numSub = Math.max(1, Math.ceil(segLen / 7.5));
+      const subLen = segLen / numSub;
 
-      // Main reinforced concrete wall panel
-      const wallGeo = new THREE.BoxGeometry(wallThick, wallH, segLen);
-      const wallMesh = new THREE.Mesh(wallGeo, MATS.concreteFenceWall);
-      wallMesh.position.set(midX, 0.35 + wallH * 0.5, midZ);
-      wallMesh.rotation.y = angle;
-      wallMesh.castShadow = true;
-      wallMesh.receiveShadow = true;
-      fenceGroup.add(wallMesh);
-
-      // Bottom concrete foundation plinth beam
-      const plinthGeo = new THREE.BoxGeometry(wallThick + 0.16, 0.45, segLen + 0.1);
-      const plinthMesh = new THREE.Mesh(plinthGeo, MATS.concreteFencePillar);
-      plinthMesh.position.set(midX, 0.35 + 0.225, midZ);
-      plinthMesh.rotation.y = angle;
-      plinthMesh.receiveShadow = true;
-      fenceGroup.add(plinthMesh);
-
-      // Top concrete coping cap rail
-      const copingGeo = new THREE.BoxGeometry(wallThick + 0.16, 0.22, segLen + 0.1);
-      const copingMesh = new THREE.Mesh(copingGeo, MATS.buildingParapet);
-      copingMesh.position.set(midX, 0.35 + wallH + 0.11, midZ);
-      copingMesh.rotation.y = angle;
-      copingMesh.castShadow = true;
-      fenceGroup.add(copingMesh);
-
-      // Corner pillar at vertex i
       addFencePillar(x1, z1, angle);
 
-      // Intermediate concrete pillars spaced every ~7.5 meters along long straight runs
-      const numSub = Math.floor(segLen / 7.5);
-      for (let s = 1; s < numSub; s++) {
-        const t = s / numSub;
-        addFencePillar(x1 + dx * t, z1 + dz * t, angle);
+      for (let s = 0; s < numSub; s++) {
+        const t0 = s / numSub;
+        const t1 = (s + 1) / numSub;
+        const sx1 = x1 + dx * t0;
+        const sz1 = z1 + dz * t0;
+        const sx2 = x1 + dx * t1;
+        const sz2 = z1 + dz * t1;
+        const midX = (sx1 + sx2) * 0.5;
+        const midZ = (sz1 + sz2) * 0.5;
+        const baseY = getTerrainElevation(midX, midZ) + 0.35;
+
+        // Main reinforced concrete wall panel
+        const wallGeo = new THREE.BoxGeometry(wallThick, wallH, subLen + 0.08);
+        const wallMesh = new THREE.Mesh(wallGeo, MATS.concreteFenceWall);
+        wallMesh.position.set(midX, baseY + wallH * 0.5, midZ);
+        wallMesh.rotation.y = angle;
+        wallMesh.castShadow = true;
+        wallMesh.receiveShadow = true;
+        fenceGroup.add(wallMesh);
+
+        // Deep bottom concrete foundation plinth beam anchored into sloped ground
+        const plinthGeo = new THREE.BoxGeometry(wallThick + 0.16, 1.05, subLen + 0.12);
+        const plinthMesh = new THREE.Mesh(plinthGeo, MATS.concreteFencePillar);
+        plinthMesh.position.set(midX, baseY - 0.05, midZ);
+        plinthMesh.rotation.y = angle;
+        plinthMesh.receiveShadow = true;
+        fenceGroup.add(plinthMesh);
+
+        // Top concrete coping cap rail
+        const copingGeo = new THREE.BoxGeometry(wallThick + 0.16, 0.22, subLen + 0.12);
+        const copingMesh = new THREE.Mesh(copingGeo, MATS.buildingParapet);
+        copingMesh.position.set(midX, baseY + wallH + 0.11, midZ);
+        copingMesh.rotation.y = angle;
+        copingMesh.castShadow = true;
+        fenceGroup.add(copingMesh);
+
+        if (s < numSub - 1) {
+          addFencePillar(sx2, sz2, angle);
+        }
       }
 
       if (i === chain.length - 2) {
@@ -1843,8 +2045,10 @@ function buildCampusProps() {
   // 1. Pos Satpam (#2): Security Boom Barrier Gate (Palang Pintu Otomatis) & Observation Glass
   const posLoc = campusData.locations.find((l) => l.id === 2);
   if (posLoc) {
+    const bxPos = posLoc.x - 5.5;
+    const bzPos = posLoc.z + 1.5;
     const boomGroup = new THREE.Group();
-    boomGroup.position.set(posLoc.x - 5.5, 0.4, posLoc.z + 1.5);
+    boomGroup.position.set(bxPos, getTerrainElevation(bxPos, bzPos) + 0.4, bzPos);
     boomGroup.rotation.y = -0.35;
 
     const housing = new THREE.Mesh(
@@ -1881,8 +2085,10 @@ function buildCampusProps() {
   // 2. Lapangan Upacara (#11): Ceremony Flagpole (Bendera Merah Putih) & Podium
   const upLoc = campusData.locations.find((l) => l.id === 11);
   if (upLoc) {
+    const fxPos = upLoc.x - 8.5;
+    const fzPos = upLoc.z - 2.0;
     const flagGroup = new THREE.Group();
-    flagGroup.position.set(upLoc.x - 8.5, 0.45, upLoc.z - 2.0);
+    flagGroup.position.set(fxPos, getTerrainElevation(fxPos, fzPos) + 0.45, fzPos);
 
     const basePed = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 2.2), MATS.buildingParapet);
     basePed.position.y = 0.28;
@@ -1936,7 +2142,7 @@ function buildCampusProps() {
 
       const dummy = new THREE.Object3D();
       lampCoords.forEach(([lx, lz], idx) => {
-        dummy.position.set(lx, 0.4, lz);
+        dummy.position.set(lx, getTerrainElevation(lx, lz) + 0.4, lz);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         poleInst.setMatrixAt(idx, dummy.matrix);
@@ -1958,7 +2164,7 @@ function buildCampusProps() {
   ];
   gazeboSpots.forEach(([gx, gz]) => {
     const gaz = new THREE.Group();
-    gaz.position.set(gx, 0.35, gz);
+    gaz.position.set(gx, getTerrainElevation(gx, gz) + 0.35, gz);
 
     const floor = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.35, 3.4), MATS.woodMat);
     floor.position.y = 0.18;
@@ -1994,7 +2200,7 @@ function buildCampusProps() {
   ];
   carConfigs.forEach((cfg) => {
     const car = new THREE.Group();
-    car.position.set(cfg.x, 0.5, cfg.z);
+    car.position.set(cfg.x, getTerrainElevation(cfg.x, cfg.z) + 0.5, cfg.z);
     car.rotation.y = cfg.rot;
 
     const bodyLen = cfg.isBus ? 6.4 : 4.1;
@@ -2036,24 +2242,26 @@ function buildGlobeMonument() {
   const loc = campusData.locations.find((l) => l.id === 7);
   if (!loc) return;
 
+  const globeY = getTerrainElevation(loc.x, loc.z);
+
   // Render exact blue triangular island from Pemetaan.png if available
   if (campusData.globe && campusData.globe.length > 0) {
     campusData.globe.forEach((gPoly) => {
       const shape = createShapeFromPoly(gPoly.outer, gPoly.holes);
-      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.42, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.1 });
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.9, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.1 });
       geo.rotateX(-Math.PI / 2);
       const plazaMesh = new THREE.Mesh(
         geo,
         new THREE.MeshStandardMaterial({ color: 0x2998e2, roughness: 0.45, metalness: 0.1 })
       );
-      plazaMesh.position.y = 0.12;
+      plazaMesh.position.y = globeY - 0.35;
       plazaMesh.receiveShadow = true;
       landmarksGroup.add(plazaMesh);
     });
   }
 
   const group = new THREE.Group();
-  group.position.set(loc.x, 0.45, loc.z);
+  group.position.set(loc.x, globeY + 0.45, loc.z);
 
   const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 2.0, 2.8, 8), MATS.buildingWall);
   ped.position.y = 1.4;
@@ -2130,7 +2338,7 @@ function buildInstancedRoundTrees(trees) {
     const [x, z, , scale, cls] = t;
     // Forest trees (cls === 2) are fuller and slightly taller
     const s = cls === 2 ? scale * 1.06 : scale * 0.95;
-    dummy.position.set(x, 0.15, z);
+    dummy.position.set(x, getTerrainElevation(x, z) + 0.15, z);
     dummy.scale.set(s, s, s);
     dummy.rotation.y = (x * 13.7 + z * 17.3) % (Math.PI * 2);
     dummy.updateMatrix();
@@ -2190,7 +2398,7 @@ function buildInstancedPalmTrees(trees) {
   const dummy = new THREE.Object3D();
   trees.forEach((t, i) => {
     const [x, z, , scale] = t;
-    dummy.position.set(x, 0.15, z);
+    dummy.position.set(x, getTerrainElevation(x, z) + 0.15, z);
     dummy.scale.set(scale, scale * 1.1, scale);
     dummy.rotation.y = (x * 7.1 + z * 3.7) % (Math.PI * 2);
     dummy.updateMatrix();
@@ -2223,7 +2431,7 @@ function buildInstancedConiferTrees(trees) {
   const dummy = new THREE.Object3D();
   trees.forEach((t, i) => {
     const [x, z, , scale] = t;
-    dummy.position.set(x, 0.15, z);
+    dummy.position.set(x, getTerrainElevation(x, z) + 0.15, z);
     dummy.scale.set(scale, scale, scale);
     dummy.rotation.y = (x + z) % (Math.PI * 2);
     dummy.updateMatrix();
@@ -2290,8 +2498,9 @@ function initFloatingLabels() {
       posX = -28.99;
       posZ = -190.37;
     }
+    const groundY = getTerrainElevation(posX, posZ);
     const yOffset = loc.kind === 'field' ? 3.6 : (loc.floors || 2) * 4.2 + 5.8;
-    const worldPos = new THREE.Vector3(posX, yOffset, posZ);
+    const worldPos = new THREE.Vector3(posX, groundY + yOffset, posZ);
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2325,8 +2534,9 @@ function initFloatingLabels() {
         textSpan.textContent = 'Ruang Makan Putri';
         el.appendChild(textSpan);
 
+        const groundY = getTerrainElevation(b.centroid[0], b.centroid[1]);
         const yOffset = (loc.floors || 2) * 4.2 + 5.2;
-        const worldPos = new THREE.Vector3(b.centroid[0], yOffset, b.centroid[1]);
+        const worldPos = new THREE.Vector3(b.centroid[0], groundY + yOffset, b.centroid[1]);
 
         el.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -2352,8 +2562,9 @@ function initFloatingLabels() {
     textSpan.textContent = loc.short || loc.name;
     el.appendChild(textSpan);
 
+    const groundY = getTerrainElevation(b.centroid[0], b.centroid[1]);
     const yOffset = (loc.floors || 2) * 4.2 + 5.2;
-    const worldPos = new THREE.Vector3(b.centroid[0], yOffset, b.centroid[1]);
+    const worldPos = new THREE.Vector3(b.centroid[0], groundY + yOffset, b.centroid[1]);
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2639,7 +2850,7 @@ function updateCursorCoordReadout(e) {
 function selectAndFocusLocation(loc) {
   STATE.selectedId = loc.id;
 
-  camState.targetLookAt.set(loc.x, 0, loc.z);
+  camState.targetLookAt.set(loc.x, getTerrainElevation(loc.x, loc.z), loc.z);
   camState.targetRadius = Math.min(camState.targetRadius, 340);
 
   const info = document.getElementById('info');
