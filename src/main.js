@@ -153,6 +153,23 @@ function createShapeFromPoly(outerRing, holes = []) {
   return shape;
 }
 
+// Ray-casting point-in-polygon check in XZ plane: pt = [x, z], poly = [[x, z], ...]
+function pointInPoly(pt, poly) {
+  if (!poly || poly.length < 3) return false;
+  const x = pt[0];
+  const z = pt[1];
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0];
+    const zi = poly[i][1];
+    const xj = poly[j][0];
+    const zj = poly[j][1];
+    const intersect = zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
 // Finds minimum-area oriented bounding box (OBB) in XZ plane for any polygon ring
 function computeOBB(ring) {
   const candidateAngles = new Set();
