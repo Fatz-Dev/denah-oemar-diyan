@@ -77,10 +77,10 @@
     "desc": "Kompleks asrama santri putra (blok utara).",
     "lat": 5.4002515,
     "lng": 95.4342619,
-    "left": 36.78,
-    "top": 32.9,
-    "leftSat": 33.15,
-    "topSat": 32.9,
+    "left": 41.85,
+    "top": 31.82,
+    "leftSat": 39.62,
+    "topSat": 31.82,
     "color": "#f97316"
   },
   {
@@ -329,10 +329,10 @@
     "desc": "Lapangan bulu tangkis.",
     "lat": 5.4000766,
     "lng": 95.4345082,
-    "left": 40.64,
-    "top": 35.74,
-    "leftSat": 38.09,
-    "topSat": 35.74,
+    "left": 40.76,
+    "top": 35.08,
+    "leftSat": 38.24,
+    "topSat": 35.08,
     "color": "#15803d"
   },
   {
