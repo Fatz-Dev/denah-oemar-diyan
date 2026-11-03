@@ -107,8 +107,8 @@ function renderKeteranganList() {
   }
 
   const SHORT_LABELS = {
-    13: 'Ruang TU, Perpustakaan & Aula',
-    14: 'Gedung Administrasi & R. Turkey',
+    13: 'R. TU, Perpustakaan & Aula',
+    14: 'Gedung Adm. & R. Turkey',
     16: 'Gedung Turkey / Sekolah',
     19: 'Dapur & Ruang Makan Putri',
     20: 'Kantin Putri & Mess Ustazah',
@@ -161,29 +161,66 @@ function selectLocation(id) {
 
 function bindToolbarAndPhotos() {
   const imgIlus = document.getElementById('img-ilustrasi');
+  const imgIlusExt = document.getElementById('img-ilustrasi-ext');
   const imgSat = document.getElementById('img-satelit');
   const markersIlus = document.getElementById('markers-ilustrasi');
   const markersSat = document.getElementById('markers-satelit');
+  const v2MapStage = document.getElementById('v2-map-stage');
+  const v2SatInset = document.getElementById('v2-satelite-inset');
+  const v2MainRibbon = document.getElementById('v2-main-ribbon-tab');
+  const v2InsetTitle = document.getElementById('v2-inset-tab-title');
+  let v2Swapped = false;
+
+  function applyMapImages() {
+    const ilusSrc = mapStyleMode === '3d'
+      ? (window.__IMG_3D_ILUS__ || '/textures/render_3d_ilustrasi.png')
+      : (window.__IMG_2D_ILUS__ || '/textures/mading_ilustrasi.jpg');
+    const satSrc = mapStyleMode === '3d'
+      ? (window.__IMG_3D_SAT__ || '/textures/render_3d_satelit.png')
+      : (window.__IMG_2D_SAT__ || '/textures/mading_satelit.jpg');
+
+    if (v2Swapped) {
+      imgIlus.src = satSrc;
+      if (imgIlusExt) imgIlusExt.src = satSrc;
+      imgSat.src = ilusSrc;
+    } else {
+      imgIlus.src = ilusSrc;
+      if (imgIlusExt) imgIlusExt.src = ilusSrc;
+      imgSat.src = satSrc;
+    }
+
+    const showPins = mapStyleMode !== '3d';
+    markersIlus.style.display = showPins ? 'block' : 'none';
+    markersSat.style.display = showPins ? 'block' : 'none';
+
+    if (v2MapStage) {
+      v2MapStage.classList.toggle('style-3d', mapStyleMode === '3d' && !v2Swapped);
+      v2MapStage.classList.toggle('main-is-satelit', v2Swapped);
+    }
+  }
 
   document.querySelectorAll('[data-map-style]').forEach((btn) => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('[data-map-style]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       mapStyleMode = btn.dataset.mapStyle;
-
-      if (mapStyleMode === '3d') {
-        imgIlus.src = window.__IMG_3D_ILUS__ || '/textures/render_3d_ilustrasi.png';
-        imgSat.src = window.__IMG_3D_SAT__ || '/textures/render_3d_satelit.png';
-        markersIlus.style.display = 'none';
-        markersSat.style.display = 'none';
-      } else {
-        imgIlus.src = window.__IMG_2D_ILUS__ || '/textures/mading_ilustrasi.jpg';
-        imgSat.src = window.__IMG_2D_SAT__ || '/textures/mading_satelit.jpg';
-        markersIlus.style.display = 'block';
-        markersSat.style.display = 'block';
-      }
+      applyMapImages();
     });
   });
+
+  if (v2SatInset) {
+    v2SatInset.addEventListener('click', (e) => {
+      if (e.target.closest('.map-pin-badge')) return;
+      v2Swapped = !v2Swapped;
+      if (v2MainRibbon) {
+        v2MainRibbon.textContent = v2Swapped ? 'Denah Satelit' : 'Denah Ilustrasi';
+      }
+      if (v2InsetTitle) {
+        v2InsetTitle.textContent = v2Swapped ? 'ILUSTRASI' : 'SATELITE';
+      }
+      applyMapImages();
+    });
+  }
 
   const printBtn = document.getElementById('btn-print');
   if (printBtn) {

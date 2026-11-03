@@ -12,6 +12,8 @@ export default defineConfig({
             const [pathname, search] = req.url.split('?');
             if (pathname === '/spanduk-mading' || pathname === '/spanduk-mading/') {
               req.url = '/spanduk-mading/index.html' + (search ? `?${search}` : '');
+            } else if (pathname === '/spanduk-mading-v2' || pathname === '/spanduk-mading-v2/') {
+              req.url = '/spanduk-mading-v2/index.html' + (search ? `?${search}` : '');
             }
           }
           next();
@@ -23,6 +25,8 @@ export default defineConfig({
             const [pathname, search] = req.url.split('?');
             if (pathname === '/spanduk-mading' || pathname === '/spanduk-mading/') {
               req.url = '/spanduk-mading/index.html' + (search ? `?${search}` : '');
+            } else if (pathname === '/spanduk-mading-v2' || pathname === '/spanduk-mading-v2/') {
+              req.url = '/spanduk-mading-v2/index.html' + (search ? `?${search}` : '');
             }
           }
           next();
@@ -35,6 +39,7 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         spanduk: resolve(import.meta.dirname, 'spanduk-mading/index.html'),
+        spandukV2: resolve(import.meta.dirname, 'spanduk-mading-v2/index.html'),
       },
     },
   },

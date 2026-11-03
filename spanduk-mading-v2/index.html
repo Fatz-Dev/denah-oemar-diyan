@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spanduk &amp; Mading V2 — Denah Pesantren Modern Tgk. Chiek Oemar Diyan</title>
+    <meta name="description" content="Spanduk & Mading Informasi Denah Pesantren Modern Tgk. Chiek Oemar Diyan (Versi 2) — Krueng Lamkareung, Aceh Besar." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@1,700&family=Poppins:wght@800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" href="/image/logo-od.png" type="image/png" />
+  </head>
+  <body>
+    <!-- Top Interactive Control Bar (Hidden automatically when printing) -->
+    <nav class="spanduk-toolbar">
+      <div class="toolbar-left">
+        <a href="/" class="back-btn" title="Kembali ke Peta 3D Interaktif">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          Peta 3D Interaktif
+        </a>
+        <div class="view-pill" role="navigation" aria-label="Pilih Versi Layout Spanduk">
+          <a href="/spanduk-mading" class="pill-link">Layout V1 (3 Kolom)</a>
+          <a href="/spanduk-mading-v2" class="pill-link active">Layout V2 (PIP Satelit)</a>
+        </div>
+        <span class="toolbar-title">Halaman Spanduk &amp; Mading V2 (`/spanduk-mading-v2`)</span>
+      </div>
+      <div class="toolbar-actions">
+        <div class="view-pill" role="tablist">
+          <button data-map-style="2d" class="active">Peta Spanduk (2.5D Berwarna)</button>
+          <button data-map-style="3d">Render Perspektif 3D</button>
+        </div>
+        <a href="/spanduk_mading_v2_pesantren.pdf" download="Spanduk-Mading-V2-Pesantren-Oemar-Diyan.pdf" class="back-btn" title="Unduh berkas PDF V2 1 halaman horizontal siap cetak">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Unduh PDF (1 Halaman)
+        </a>
+        <button id="btn-print" class="action-btn" title="Cetak Spanduk atau Simpan sebagai PDF">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Cetak / Simpan PDF
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Spanduk Poster Stage -->
+    <main class="spanduk-stage">
+      <article class="spanduk-board v2-board" id="spanduk-board">
+
+        <!-- ================================================================
+             ROW 1: HEADER BANNER (Logo | Title & Location Pill | Motto)
+             ================================================================ -->
+        <header class="mading-header">
+          <div class="header-logo-wrap">
+            <img src="/image/logo-od.png" alt="Logo Pesantren Modern Tgk. Chiek Oemar Diyan" class="header-logo" />
+          </div>
+
+          <div class="header-title-wrap">
+            <svg class="header-titles-svg" viewBox="0 0 980 108" role="heading" aria-label="Denah Pesantren Modern Tgk. Chiek Oemar Diyan">
+              <defs>
+                <linearGradient id="whiteTitleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff" />
+                  <stop offset="100%" stop-color="#e2e8f0" />
+                </linearGradient>
+                <linearGradient id="goldTitleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#fff9db" />
+                  <stop offset="28%" stop-color="#fde047" />
+                  <stop offset="68%" stop-color="#facc15" />
+                  <stop offset="100%" stop-color="#ea9806" />
+                </linearGradient>
+                <filter id="titleDropShadow" x="-10%" y="-10%" width="120%" height="130%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#030b18" flood-opacity="0.55" />
+                </filter>
+              </defs>
+
+              <!-- Baris 1: DENAH PESANTREN MODERN -->
+              <g filter="url(#titleDropShadow)" class="svg-title-top-group">
+                <text x="490" y="40" text-anchor="middle" class="svg-title-top-extrude">DENAH PESANTREN MODERN</text>
+                <text x="490" y="37" text-anchor="middle" class="svg-title-top-stroke">DENAH PESANTREN MODERN</text>
+                <text x="490" y="37" text-anchor="middle" class="svg-title-top-fill">DENAH PESANTREN MODERN</text>
+              </g>
+
+              <!-- Baris 2: TGK. CHIEK OEMAR DIYAN -->
+              <g filter="url(#titleDropShadow)" class="svg-title-main-group">
+                <text x="490" y="96" text-anchor="middle" class="svg-title-main-extrude">TGK. CHIEK OEMAR DIYAN</text>
+                <text x="490" y="91" text-anchor="middle" class="svg-title-main-stroke">TGK. CHIEK OEMAR DIYAN</text>
+                <text x="490" y="91" text-anchor="middle" class="svg-title-main-fill">TGK. CHIEK OEMAR DIYAN</text>
+              </g>
+            </svg>
+            <div class="title-sub-pill">Krueng Lamkareung &ndash; Aceh Besar &ndash; Aceh</div>
+          </div>
+
+          <div class="header-motto-wrap">
+            <div class="motto-line"></div>
+            <p class="motto-text">
+              &ldquo;Mencetak Generasi<br />
+              Berilmu, Berakhlak Mulia<br />
+              dan Siap Mengabdi<br />
+              untuk Umat dan Bangsa&rdquo;
+            </p>
+            <div class="motto-line"></div>
+          </div>
+
+          <svg class="header-wave" viewBox="0 0 1600 24" preserveAspectRatio="none">
+            <path d="M0,16 C280,28 520,0 800,12 C1080,24 1320,2 1600,14 L1600,24 L0,24 Z" fill="#facc15" />
+            <path d="M0,20 C280,30 520,6 800,17 C1080,28 1320,8 1600,19 L1600,24 L0,24 Z" fill="#ffffff" />
+          </svg>
+        </header>
+
+        <!-- ================================================================
+             ROW 2 (V2 REDESIGN): 2-COLUMN MAIN CONTENT
+             Col 1 (Wide): Denah Ilustrasi + Top-Right SATELITE Inset Box
+             Col 2 (Sidebar): KETERANGAN BANGUNAN + LEGENDA WARNA
+             ================================================================ -->
+        <section class="mading-main-grid v2-main-grid">
+
+          <!-- COLUMN 1: WIDE DENAH ILUSTRASI WITH TOP-LEFT RIBBON & SATELITE PIP INSET -->
+          <div class="mading-card v2-map-card">
+            <div class="section-ribbon-tab v2-map-ribbon" id="v2-main-ribbon-tab">Denah Ilustrasi</div>
+
+            <div class="map-viewport v2-map-viewport" id="v2-map-stage">
+              <!-- Seamless Right-Side Background Extension (Mirrored Green Edge of Map) -->
+              <div class="v2-map-bg-ext" aria-hidden="true">
+                <img id="img-ilustrasi-ext" src="/textures/mading_ilustrasi.jpg" alt="" />
+              </div>
+
+              <!-- Proportional Main Map Canvas (Zero Distortion, 100% Exact Pin Coordinates) -->
+              <div class="v2-map-canvas-inner" id="v2-main-canvas">
+                <img id="img-ilustrasi" src="/textures/mading_ilustrasi.jpg" alt="Denah Ilustrasi Pesantren Oemar Diyan" class="map-img" />
+
+                <!-- Compass Rose U-B-T-S -->
+                <svg class="map-compass v2-compass" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="30" fill="rgba(12,37,71,0.72)" stroke="#ffffff" stroke-width="2.5" />
+                  <circle cx="50" cy="50" r="24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" stroke-dasharray="3 2" />
+                  <polygon points="50,14 56,44 50,40 44,44" fill="#ef4444" />
+                  <polygon points="50,86 56,56 50,60 44,56" fill="#ffffff" />
+                  <polygon points="14,50 44,44 40,50 44,56" fill="#e2e8f0" />
+                  <polygon points="86,50 56,44 60,50 56,56" fill="#e2e8f0" />
+                  <circle cx="50" cy="50" r="4" fill="#facc15" stroke="#0c2547" stroke-width="1.5" />
+                  <text x="50" y="11" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="900" stroke="#0c2547" stroke-width="2.5" paint-order="stroke">U</text>
+                  <text x="50" y="98" text-anchor="middle" fill="#ffffff" font-size="10.5" font-weight="900" stroke="#0c2547" stroke-width="2.5" paint-order="stroke">S</text>
+                  <text x="7" y="54" text-anchor="middle" fill="#ffffff" font-size="10.5" font-weight="900" stroke="#0c2547" stroke-width="2.5" paint-order="stroke">B</text>
+                  <text x="93" y="54" text-anchor="middle" fill="#ffffff" font-size="10.5" font-weight="900" stroke="#0c2547" stroke-width="2.5" paint-order="stroke">T</text>
+                </svg>
+
+                <!-- Interactive Numbered Markers 1-26 -->
+                <div id="markers-ilustrasi" class="map-markers-layer"></div>
+              </div>
+
+              <!-- TOP-RIGHT PICTURE-IN-PICTURE (PIP): SATELITE INSET BOX -->
+              <div class="v2-satelite-inset" id="v2-satelite-inset" title="Klik untuk menukar tampilan Denah Ilustrasi dan Satelit">
+                <div class="v2-satelite-header">
+                  <span id="v2-inset-tab-title">SATELITE</span>
+                </div>
+                <div class="v2-satelite-body">
+                  <img id="img-satelit" src="/textures/mading_satelit.jpg" alt="Denah Satelit Pesantren Oemar Diyan" class="map-img" />
+                  <div id="markers-satelit" class="map-markers-layer v2-inset-markers"></div>
+                </div>
+              </div>
+
+              <!-- Metric Scale Bar (Bottom-Right below Satelite Inset) -->
+              <div class="map-scale-box v2-scale-box">
+                <div class="scale-title">Skala Peta</div>
+                <div class="scale-labels">
+                  <span>0</span>
+                  <span>25</span>
+                  <span>50</span>
+                  <span>100</span>
+                  <span>150</span>
+                  <span>200</span>
+                </div>
+                <div class="scale-bar-row">
+                  <div class="scale-segments">
+                    <span></span><span></span><span></span><span></span><span></span>
+                  </div>
+                  <span class="scale-unit">Meter</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUMN 2: WIDER SIDEBAR STACK (Keterangan Bangunan + Legenda Warna) -->
+          <aside class="mading-sidebar-stack v2-sidebar-stack">
+
+            <!-- TOP SIDEBAR BOX: KETERANGAN BANGUNAN -->
+            <div class="sidebar-card keterangan-card v2-keterangan-card">
+              <div class="sidebar-header v2-sidebar-header">KETERANGAN BANGUNAN</div>
+              <div id="keterangan-grid" class="keterangan-grid v2-keterangan-grid"></div>
+            </div>
+
+            <!-- BOTTOM SIDEBAR BOX: LEGENDA WARNA & QR CODE -->
+            <div class="sidebar-card legenda-card v2-legenda-card">
+              <div class="sidebar-header v2-sidebar-header">LEGENDA WARNA</div>
+              <div class="legenda-body v2-legenda-body">
+                <div class="legenda-list v2-legenda-list">
+                  <div class="leg-row">
+                    <span class="leg-swatch" style="background:#16803c"></span>
+                    <span>Masjid &amp; Musalla (Ibadah)</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch" style="background:#2563eb"></span>
+                    <span>Fasilitas Pendidikan</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch" style="background:#f97316"></span>
+                    <span>Asrama Putra</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch" style="background:#dc2626"></span>
+                    <span>Asrama Putri &amp; Mess</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch" style="background:#64748b"></span>
+                    <span>Fasilitas Umum &amp; Dapur</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch" style="background:#44a548"></span>
+                    <span>Area Hijau / Lapangan</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch line-red"></span>
+                    <span>Batas Wilayah Pesantren</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch line-black"></span>
+                    <span>Jalan Utama / Raya</span>
+                  </div>
+                  <div class="leg-row">
+                    <span class="leg-swatch line-yellow"></span>
+                    <span>Jalan Lingkungan</span>
+                  </div>
+                </div>
+
+                <!-- QR Code Box linking to Pesantren Google Maps -->
+                <a href="https://maps.app.goo.gl/cHK8LiBE2TWgNt8h8" target="_blank" rel="noopener" class="qr-card v2-qr-card" title="Buka Lokasi di Google Maps">
+                  <div class="qr-box">
+                    <img src="/image/qr-code.png" alt="qr-code">
+                  </div>
+                  <div class="qr-info">
+                    <span>Scan QR untuk lokasi Google Maps</span>
+                    <small>9CXP+H7 Krueng Lamkareung</small>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+          </aside>
+        </section>
+
+        <!-- ================================================================
+             ROW 3: FOTO GEDUNG-GEDUNG UTAMA (8 Horizontal Cards)
+             ================================================================ -->
+        <section class="mading-photos-section">
+          <div class="section-ribbon-tab">FOTO GEDUNG-GEDUNG UTAMA</div>
+          <div class="photos-grid-8">
+            <div class="photo-card" data-loc-id="4">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_1.jpg" alt="Masjid Baburrayyan" />
+              </div>
+              <div class="photo-caption">Masjid</div>
+            </div>
+            <div class="photo-card" data-loc-id="3">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_2.jpg" alt="Gedung Kelas MTsN & GTS" />
+              </div>
+              <div class="photo-caption">Gedung Kelas</div>
+            </div>
+            <div class="photo-card" data-loc-id="6">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_3.jpg" alt="Asrama Putra" />
+              </div>
+              <div class="photo-caption">Asrama Putra</div>
+            </div>
+            <div class="photo-card" data-loc-id="18">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_4.jpg" alt="Asrama Putri" />
+              </div>
+              <div class="photo-caption">Asrama Putri</div>
+            </div>
+            <div class="photo-card" data-loc-id="22">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_5.jpg" alt="Aula / Serbaguna STB" />
+              </div>
+              <div class="photo-caption">Aula / Serbaguna</div>
+            </div>
+            <div class="photo-card" data-loc-id="13">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_6.jpg" alt="Perpustakaan & Ruang TU" />
+              </div>
+              <div class="photo-caption">Perpustakaan</div>
+            </div>
+            <div class="photo-card" data-loc-id="1">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_7.jpg" alt="Gerbang Utama" />
+              </div>
+              <div class="photo-caption">Gerbang Utama</div>
+            </div>
+            <div class="photo-card" data-loc-id="2">
+              <div class="photo-thumb-wrap">
+                <img src="/textures/gedung_8.jpg" alt="Area Pintu Masuk & Pos Satpam" />
+              </div>
+              <div class="photo-caption">Gerbang &amp; Pos Satpam</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             ROW 4: FOOTER (Pengantar Pembuat Denah + Location Card)
+             ================================================================ -->
+        <footer class="mading-footer-row">
+          <div class="pengantar-box">
+            <div class="pengantar-logos" title="Program Kerja PPKPM UIN Ar-Raniry">
+              <div class="pengantar-logo-badge">
+                <img src="/textures/logo-uin.png" alt="Logo UIN Ar-Raniry" class="pengantar-logo-img" />
+              </div>
+              <div class="pengantar-logo-badge">
+                <img src="/textures/logo-ppkpm.png" alt="Logo PPKPM 26 Tgk. Chiek Oemar Diyan" class="pengantar-logo-img" />
+              </div>
+            </div>
+            <div class="pengantar-tab">PENGANTAR PEMBUAT DENAH &mdash; PPKPM UIN AR-RANIRY</div>
+            <div class="pengantar-columns">
+              <p>
+                Denah ini merupakan <strong>program kerja mahasiswa-mahasiswi PPKPM dari UIN Ar-Raniry</strong> yang disusun sebagai panduan visual untuk mengenal lebih dekat tata letak dan fasilitas di lingkungan Pesantren Modern Tgk. Chiek Oemar Diyan. Penyusunan denah ini diharapkan dapat memudahkan santri, guru, tamu, dan seluruh pihak dalam memahami lokasi setiap bangunan serta mendukung kelancaran kegiatan dan aktivitas di pesantren.
+              </p>
+              <p>
+                Kami menyadari bahwa denah ini masih dapat terus disempurnakan. Oleh karena itu, mahasiswa-mahasiswi PPKPM UIN Ar-Raniry terbuka terhadap saran dan masukan demi penyempurnaan denah di masa mendatang. Semoga hasil program kerja ini bermanfaat bagi seluruh keluarga besar Pesantren Modern Tgk. Chiek Oemar Diyan.
+              </p>
+            </div>
+          </div>
+
+          <a href="https://maps.app.goo.gl/tD1gUuhmkMMjJH9aA" target="_blank" rel="noopener" class="footer-location-card">
+            <div class="loc-pin-circle">
+              <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+            </div>
+            <div class="loc-text">
+              <h4>Pesantren Modern<br />Tgk. Chiek Oemar Diyan</h4>
+              <p>
+                Jl. Tgk. Chiek Oemar Diyan, Krueng Lamkareung<br />
+                Aceh Besar &ndash; Aceh &middot; 5.3992&deg; U, 95.4358&deg; T
+              </p>
+            </div>
+          </a>
+        </footer>
+
+      </article>
+    </main>
+
+    <!-- Floating Location Inspector Toast when user clicks any marker 1-26 -->
+    <div id="mading-inspector" class="mading-inspector hidden" role="status" aria-live="polite">
+      <div id="insp-badge" class="insp-badge">1</div>
+      <div class="insp-body">
+        <h5 id="insp-title">Masjid Baburrayyan</h5>
+        <p id="insp-desc">Koordinat: 5.3992° U, 95.4358° T</p>
+      </div>
+      <div class="insp-actions">
+        <a id="insp-gmaps" href="https://maps.app.goo.gl/tD1gUuhmkMMjJH9aA" target="_blank" rel="noopener" class="insp-btn">Google Maps</a>
+      </div>
+      <button id="insp-close" class="insp-close" title="Tutup">&times;</button>
+    </div>
+
+    <script type="module" src="/src/spanduk.js"></script>
+  </body>
+</html>
