@@ -1012,12 +1012,289 @@ html, body {
 }
 
 /* ==========================================================================
+   V2 LAYOUT REDESIGN (/spanduk-mading-v2)
+   Wide Denah Ilustrasi + Top-Right SATELITE PIP Inset + Wide Sidebar Stack
+   ========================================================================== */
+.view-pill .pill-link {
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.view-pill .pill-link.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.45);
+}
+
+.view-pill .pill-link:hover:not(.active) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mading-main-grid.v2-main-grid {
+  grid-template-columns: 984px 576px;
+  gap: 12px;
+  height: 615px;
+  margin: 0 14px;
+}
+
+.v2-map-card {
+  position: relative;
+  padding: 5px;
+  overflow: visible;
+}
+
+.v2-map-ribbon {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  z-index: 30;
+  padding: 6px 34px 6px 20px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  border-top-left-radius: 12px;
+  border-bottom-right-radius: 14px;
+  background: linear-gradient(90deg, #0d2b52 0%, #1c4f96 100%);
+  box-shadow: 0 3px 10px rgba(12, 37, 71, 0.25);
+}
+
+.v2-map-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #cbe3c8;
+}
+
+.v2-map-viewport.style-3d {
+  background: #d8e8d5;
+}
+
+.v2-map-viewport.main-is-satelit {
+  background: #142618;
+}
+
+.v2-map-canvas-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 718px;
+  height: 100%;
+  z-index: 2;
+}
+
+.v2-map-bg-ext {
+  position: absolute;
+  left: 717px;
+  right: 0;
+  top: 0;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.v2-map-bg-ext img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2150px;
+  height: 100%;
+  object-fit: fill;
+  transform: scaleX(-1);
+  display: block;
+}
+
+.v2-map-canvas-inner > .map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+
+.v2-compass {
+  top: 44px !important;
+  left: 16px !important;
+  width: 68px !important;
+  height: 68px !important;
+}
+
+/* Picture-in-Picture (PIP) SATELITE Inset Box at Top-Right */
+.v2-satelite-inset {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 248px;
+  height: 270px;
+  z-index: 25;
+  background: #ffffff;
+  border: 2.5px solid #3b5975;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 22px rgba(12, 37, 71, 0.32);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.v2-satelite-inset:hover {
+  transform: scale(1.015);
+  box-shadow: 0 10px 26px rgba(12, 37, 71, 0.4);
+}
+
+.v2-satelite-header {
+  background: linear-gradient(90deg, #4b6a7e 0%, #334e62 100%);
+  color: #ffffff;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 5px 8px;
+  text-transform: uppercase;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.4);
+  flex: none;
+}
+
+.v2-satelite-body {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  background: #142618;
+}
+
+.v2-satelite-body > .map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+
+.v2-inset-markers .map-pin-badge {
+  width: 13.5px !important;
+  height: 13.5px !important;
+  font-size: 7.2px !important;
+  border-width: 1.2px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55) !important;
+}
+
+.v2-scale-box {
+  left: auto !important;
+  right: 14px !important;
+  bottom: 14px !important;
+  width: 248px !important;
+  z-index: 20;
+}
+
+/* V2 Right Sidebar Stack (576px Wide) */
+.v2-sidebar-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+}
+
+.v2-sidebar-header {
+  font-size: 15px;
+  padding: 7px 12px;
+  letter-spacing: 0.06em;
+}
+
+.v2-keterangan-card {
+  flex: 1.2;
+}
+
+.v2-keterangan-grid {
+  padding: 8px 14px;
+  column-gap: 16px;
+  row-gap: 3px;
+}
+
+.v2-keterangan-grid .ket-item {
+  gap: 7px;
+  padding: 1.5px 4px;
+}
+
+.v2-keterangan-grid .ket-badge {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+.v2-keterangan-grid .ket-name {
+  font-size: 11.8px;
+  font-weight: 700;
+}
+
+.v2-legenda-card {
+  flex: 0.8;
+}
+
+.v2-legenda-body {
+  grid-template-columns: 1fr 188px;
+  gap: 12px;
+  padding: 8px 14px;
+}
+
+.v2-legenda-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 10px;
+  row-gap: 6px;
+  align-content: center;
+}
+
+.v2-legenda-list .leg-row {
+  font-size: 10.6px;
+  gap: 7px;
+}
+
+.v2-legenda-list .leg-swatch {
+  width: 24px;
+  height: 12px;
+}
+
+.v2-qr-card {
+  padding: 9px;
+  gap: 9px;
+}
+
+.v2-qr-card .qr-box {
+  width: 76px;
+  height: 76px;
+}
+
+.v2-qr-card .qr-info {
+  font-size: 10.5px;
+}
+
+/* ==========================================================================
    PRINT MEDIA RULES — 1-Page Horizontal Landscape without Wrapping/Squeezing
    ========================================================================== */
 @media print {
   @page {
     size: 423.33mm 300.57mm; /* Exact 1600px x 1136px landscape aspect ratio on 1 single page */
     margin: 0mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   html, body {

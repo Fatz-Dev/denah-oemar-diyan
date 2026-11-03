@@ -46,7 +46,7 @@ open(out_3d, "w", encoding="utf-8").write(html_content)
 print(f"Generated standalone 3D map: {out_3d} ({os.path.getsize(out_3d):,} bytes)")
 
 # ---------------------------------------------------------------------------
-# 2. Generate spanduk_mading_offline.html
+# 2. Generate spanduk_mading_offline.html & spanduk_mading_v2_offline.html
 # ---------------------------------------------------------------------------
 markers_json = json.load(open(os.path.join(PUB, "data", "mading_markers.json"), encoding="utf-8"))
 spanduk_css = open(os.path.join(ROOT, "src", "spanduk.css"), encoding="utf-8").read()
@@ -56,19 +56,12 @@ spanduk_js = spanduk_js.replace("import './spanduk.css';", "")
 hdr_b64 = to_b64_uri(os.path.join(TEX, "mading_header_bg.jpg"))
 spanduk_css = spanduk_css.replace("url('/textures/mading_header_bg.jpg')", f"url('{hdr_b64}')")
 
-spanduk_html = open(os.path.join(ROOT, "spanduk-mading", "index.html"), encoding="utf-8").read()
-spanduk_html = spanduk_html.replace('href="/"', 'href="denah_3d_offline.html"')
-
-# Replace all /textures/... image paths in HTML with base64 data URIs
-for img_name in ["mading_logo.png", "logo-uin.png", "logo-ppkpm.png", "mading_ilustrasi.jpg", "mading_satelit.jpg"] + [f"gedung_{i}.jpg" for i in range(1, 9)]:
-    b64 = to_b64_uri(os.path.join(TEX, img_name))
-    spanduk_html = spanduk_html.replace(f"/textures/{img_name}?v=2", b64)
-    spanduk_html = spanduk_html.replace(f"/textures/{img_name}", b64)
-
 ilus_2d_b64 = to_b64_uri(os.path.join(TEX, "mading_ilustrasi.jpg"))
 sat_2d_b64 = to_b64_uri(os.path.join(TEX, "mading_satelit.jpg"))
 ilus_3d_b64 = to_b64_uri(os.path.join(TEX, "render_3d_ilustrasi.png"))
 sat_3d_b64 = to_b64_uri(os.path.join(TEX, "render_3d_satelit.png"))
+logo_od_b64 = to_b64_uri(os.path.join(PUB, "image", "logo-od.png"))
+qr_code_b64 = to_b64_uri(os.path.join(PUB, "image", "qr-code.png"))
 
 spanduk_globals = (
     f"window.__MADING_MARKERS__ = {json.dumps(markers_json, ensure_ascii=False, separators=(',', ':'))};\n"
@@ -78,12 +71,30 @@ spanduk_globals = (
     f"window.__IMG_3D_SAT__ = '{sat_3d_b64}';\n"
 )
 
-spanduk_html = spanduk_html.replace("</head>", f"<style>\n{spanduk_css}\n</style>\n</head>")
-spanduk_html = spanduk_html.replace(
-    '<script type="module" src="/src/spanduk.js"></script>',
-    f"<script type=\"module\">\n{spanduk_globals}\n{spanduk_js}\n</script>",
-)
+def build_spanduk_offline(folder_name, out_filename):
+    spanduk_html = open(os.path.join(ROOT, folder_name, "index.html"), encoding="utf-8").read()
+    spanduk_html = spanduk_html.replace('href="/"', 'href="denah_3d_offline.html"')
+    spanduk_html = spanduk_html.replace('href="/spanduk-mading"', 'href="spanduk_mading_offline.html"')
+    spanduk_html = spanduk_html.replace('href="/spanduk-mading-v2"', 'href="spanduk_mading_v2_offline.html"')
+    spanduk_html = spanduk_html.replace('/image/logo-od.png', logo_od_b64)
+    spanduk_html = spanduk_html.replace('../image/logo-od.png', logo_od_b64)
+    spanduk_html = spanduk_html.replace('/image/qr-code.png', qr_code_b64)
+    spanduk_html = spanduk_html.replace('../image/qr-code.png', qr_code_b64)
 
-out_spanduk = os.path.join(ROOT, "spanduk_mading_offline.html")
-open(out_spanduk, "w", encoding="utf-8").write(spanduk_html)
-print(f"Generated standalone Spanduk Mading: {out_spanduk} ({os.path.getsize(out_spanduk):,} bytes)")
+    for img_name in ["mading_logo.png", "logo-uin.png", "logo-ppkpm.png", "mading_ilustrasi.jpg", "mading_satelit.jpg"] + [f"gedung_{i}.jpg" for i in range(1, 9)]:
+        b64 = to_b64_uri(os.path.join(TEX, img_name))
+        spanduk_html = spanduk_html.replace(f"/textures/{img_name}?v=2", b64)
+        spanduk_html = spanduk_html.replace(f"/textures/{img_name}", b64)
+
+    spanduk_html = spanduk_html.replace("</head>", f"<style>\n{spanduk_css}\n</style>\n</head>")
+    spanduk_html = spanduk_html.replace(
+        '<script type="module" src="/src/spanduk.js"></script>',
+        f"<script type=\"module\">\n{spanduk_globals}\n{spanduk_js}\n</script>",
+    )
+
+    out_path = os.path.join(ROOT, out_filename)
+    open(out_path, "w", encoding="utf-8").write(spanduk_html)
+    print(f"Generated standalone Spanduk ({folder_name}): {out_path} ({os.path.getsize(out_path):,} bytes)")
+
+build_spanduk_offline("spanduk-mading", "spanduk_mading_offline.html")
+build_spanduk_offline("spanduk-mading-v2", "spanduk_mading_v2_offline.html")
