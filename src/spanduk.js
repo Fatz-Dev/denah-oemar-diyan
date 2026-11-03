@@ -61,36 +61,31 @@ async function initSpanduk() {
 function renderMapMarkers() {
   const ilusLayer = document.getElementById('markers-ilustrasi');
   const satLayer = document.getElementById('markers-satelit');
-  if (!ilusLayer || !satLayer) return;
+  if (satLayer) satLayer.innerHTML = '';
+  if (!ilusLayer) return;
 
   ilusLayer.innerHTML = '';
-  satLayer.innerHTML = '';
 
   markersData.forEach((loc) => {
     const off = PIN_OFFSETS[loc.id] || { dx: 0, dy: 0 };
+    const left = loc.left + off.dx;
+    const top = loc.top + off.dy;
 
-    const pairs = [
-      { layer: ilusLayer, left: loc.left + off.dx, top: loc.top + off.dy },
-      { layer: satLayer, left: (loc.leftSat ?? loc.left) + off.dx * 1.15, top: (loc.topSat ?? loc.top) + off.dy },
-    ];
+    const pin = document.createElement('button');
+    pin.className = 'map-pin-badge';
+    pin.dataset.id = loc.id;
+    pin.style.left = left.toFixed(2) + '%';
+    pin.style.top = top.toFixed(2) + '%';
+    pin.style.setProperty('--pin-bg', loc.color);
+    pin.textContent = loc.id;
+    pin.title = `${loc.id}. ${loc.name} (${loc.category})`;
 
-    pairs.forEach(({ layer, left, top }) => {
-      const pin = document.createElement('button');
-      pin.className = 'map-pin-badge';
-      pin.dataset.id = loc.id;
-      pin.style.left = left.toFixed(2) + '%';
-      pin.style.top = top.toFixed(2) + '%';
-      pin.style.setProperty('--pin-bg', loc.color);
-      pin.textContent = loc.id;
-      pin.title = `${loc.id}. ${loc.name} (${loc.category})`;
-
-      pin.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectLocation(loc.id);
-      });
-
-      layer.appendChild(pin);
+    pin.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectLocation(loc.id);
     });
+
+    ilusLayer.appendChild(pin);
   });
 }
 
@@ -99,11 +94,24 @@ function renderKeteranganList() {
   if (!container) return;
   container.innerHTML = '';
 
-  const half = Math.ceil(markersData.length / 2);
+  const isV2 = container.classList.contains('v2-keterangan-grid');
   const reordered = [];
-  for (let row = 0; row < half; row++) {
-    if (markersData[row]) reordered.push(markersData[row]);
-    if (markersData[row + half]) reordered.push(markersData[row + half]);
+
+  if (isV2) {
+    const cols = 3;
+    const rows = Math.ceil(markersData.length / cols);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = c * rows + r;
+        if (markersData[idx]) reordered.push(markersData[idx]);
+      }
+    }
+  } else {
+    const half = Math.ceil(markersData.length / 2);
+    for (let row = 0; row < half; row++) {
+      if (markersData[row]) reordered.push(markersData[row]);
+      if (markersData[row + half]) reordered.push(markersData[row + half]);
+    }
   }
 
   const SHORT_LABELS = {
@@ -161,7 +169,6 @@ function selectLocation(id) {
 
 function bindToolbarAndPhotos() {
   const imgIlus = document.getElementById('img-ilustrasi');
-  const imgIlusExt = document.getElementById('img-ilustrasi-ext');
   const imgSat = document.getElementById('img-satelit');
   const markersIlus = document.getElementById('markers-ilustrasi');
   const markersSat = document.getElementById('markers-satelit');
@@ -180,18 +187,21 @@ function bindToolbarAndPhotos() {
       : (window.__IMG_2D_SAT__ || '/textures/mading_satelit.jpg');
 
     if (v2Swapped) {
-      imgIlus.src = satSrc;
-      if (imgIlusExt) imgIlusExt.src = satSrc;
-      imgSat.src = ilusSrc;
+      if (imgIlus) imgIlus.src = satSrc;
+      if (imgSat) imgSat.src = ilusSrc;
     } else {
-      imgIlus.src = ilusSrc;
-      if (imgIlusExt) imgIlusExt.src = ilusSrc;
-      imgSat.src = satSrc;
+      if (imgIlus) imgIlus.src = ilusSrc;
+      if (imgSat) imgSat.src = satSrc;
     }
 
     const showPins = mapStyleMode !== '3d';
-    markersIlus.style.display = showPins ? 'block' : 'none';
-    markersSat.style.display = showPins ? 'block' : 'none';
+    // Numbered markers only shown on the illustrated map, NEVER on the satellite map
+    if (markersIlus) {
+      markersIlus.style.display = (showPins && !v2Swapped) ? 'block' : 'none';
+    }
+    if (markersSat) {
+      markersSat.style.display = 'none';
+    }
 
     if (v2MapStage) {
       v2MapStage.classList.toggle('style-3d', mapStyleMode === '3d' && !v2Swapped);

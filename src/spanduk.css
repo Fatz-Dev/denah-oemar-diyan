@@ -1043,8 +1043,8 @@ html, body {
 }
 
 .mading-main-grid.v2-main-grid {
-  grid-template-columns: 984px 576px;
-  gap: 12px;
+  grid-template-columns: 648px 910px;
+  gap: 14px;
   height: 615px;
   margin: 0 14px;
 }
@@ -1090,33 +1090,10 @@ html, body {
 
 .v2-map-canvas-inner {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 718px;
+  inset: 0;
+  width: 100%;
   height: 100%;
   z-index: 2;
-}
-
-.v2-map-bg-ext {
-  position: absolute;
-  left: 717px;
-  right: 0;
-  top: 0;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.v2-map-bg-ext img {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 2150px;
-  height: 100%;
-  object-fit: fill;
-  transform: scaleX(-1);
-  display: block;
 }
 
 .v2-map-canvas-inner > .map-img {
@@ -1127,46 +1104,46 @@ html, body {
 }
 
 .v2-compass {
-  top: 44px !important;
-  left: 16px !important;
-  width: 68px !important;
-  height: 68px !important;
+  top: 42px !important;
+  left: 14px !important;
+  width: 62px !important;
+  height: 62px !important;
 }
 
 /* Picture-in-Picture (PIP) SATELITE Inset Box at Top-Right */
 .v2-satelite-inset {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 248px;
-  height: 270px;
+  top: 10px;
+  right: 10px;
+  width: 160px;
+  height: 176px;
   z-index: 25;
   background: #ffffff;
-  border: 2.5px solid #3b5975;
-  border-radius: 12px;
+  border: 2px solid #1e3a5f;
+  border-radius: 9px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 22px rgba(12, 37, 71, 0.32);
+  box-shadow: 0 5px 16px rgba(12, 37, 71, 0.35);
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .v2-satelite-inset:hover {
-  transform: scale(1.015);
-  box-shadow: 0 10px 26px rgba(12, 37, 71, 0.4);
+  transform: scale(1.02);
+  box-shadow: 0 8px 22px rgba(12, 37, 71, 0.45);
 }
 
 .v2-satelite-header {
-  background: linear-gradient(90deg, #4b6a7e 0%, #334e62 100%);
+  background: linear-gradient(90deg, #10325c 0%, #1c4f96 100%);
   color: #ffffff;
   text-align: center;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  padding: 5px 8px;
+  padding: 3px 5px;
   text-transform: uppercase;
-  border-bottom: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-bottom: 1.5px solid #93c5fd;
   flex: none;
 }
 
@@ -1181,27 +1158,24 @@ html, body {
 .v2-satelite-body > .map-img {
   width: 100%;
   height: 100%;
-  object-fit: fill;
+  object-fit: cover;
   display: block;
 }
 
-.v2-inset-markers .map-pin-badge {
-  width: 13.5px !important;
-  height: 13.5px !important;
-  font-size: 7.2px !important;
-  border-width: 1.2px !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55) !important;
+.v2-inset-markers {
+  display: none !important;
 }
 
 .v2-scale-box {
-  left: auto !important;
-  right: 14px !important;
-  bottom: 14px !important;
-  width: 248px !important;
+  left: 14px !important;
+  right: auto !important;
+  bottom: 12px !important;
+  width: 185px !important;
+  min-width: 185px !important;
   z-index: 20;
 }
 
-/* V2 Right Sidebar Stack (576px Wide) */
+/* V2 Right Sidebar Stack (910px Wide) */
 .v2-sidebar-stack {
   display: flex;
   flex-direction: column;
@@ -1216,39 +1190,42 @@ html, body {
 }
 
 .v2-keterangan-card {
-  flex: 1.2;
+  flex: 1.25;
 }
 
 .v2-keterangan-grid {
-  padding: 8px 14px;
-  column-gap: 16px;
-  row-gap: 3px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) !important;
+  padding: 8px 12px;
+  column-gap: 12px;
+  row-gap: 2.5px;
+  align-content: space-evenly;
 }
 
 .v2-keterangan-grid .ket-item {
-  gap: 7px;
-  padding: 1.5px 4px;
+  gap: 6px;
+  padding: 2px 4px;
 }
 
 .v2-keterangan-grid .ket-badge {
   width: 20px;
   height: 20px;
-  font-size: 10px;
+  font-size: 10.5px;
 }
 
 .v2-keterangan-grid .ket-name {
-  font-size: 11.8px;
+  font-size: 11.2px;
   font-weight: 700;
 }
 
 .v2-legenda-card {
-  flex: 0.8;
+  flex: 0.75;
 }
 
 .v2-legenda-body {
-  grid-template-columns: 1fr 188px;
-  gap: 12px;
-  padding: 8px 14px;
+  grid-template-columns: 1fr 210px;
+  gap: 14px;
+  padding: 6px 14px;
 }
 
 .v2-legenda-list {

@@ -467,6 +467,7 @@ print("Saved mading_ilustrasi.jpg", (MW, MH))
 
 # ---------------------------------------------------------------------------
 # 4. Render DENAH SATELIT (public/textures/mading_satelit.jpg)
+# Pure satellite orthophoto with ONLY campus boundary (no buildings, no numbers)
 # ---------------------------------------------------------------------------
 sat_canvas = sat_bgr.copy()
 sat_pil = ImageEnhance.Contrast(ImageEnhance.Sharpness(Image.fromarray(cv2.cvtColor(sat_canvas, cv2.COLOR_BGR2RGB))).enhance(1.35)).enhance(1.12)
@@ -475,27 +476,9 @@ sat_canvas = cv2.cvtColor(np.array(sat_pil), cv2.COLOR_RGB2BGR)
 outside_mask = campus_mask == 0
 sat_canvas[outside_mask] = (sat_canvas[outside_mask] * 0.72).astype(np.uint8)
 
-# Subtle internal road overlay on satellite map (matching Example-Desain.jpeg)
-for rd in campus.get("roadsInternal", []):
-    r_pts = poly_to_map(rd["outer"])
-    r_holes = [poly_to_map(h) for h in rd.get("holes", [])]
-    rd_mask = np.zeros((MH, MW), dtype=np.uint8)
-    cv2.fillPoly(rd_mask, [r_pts], 255)
-    for rh in r_holes:
-        cv2.fillPoly(rd_mask, [rh], 0)
-    sat_canvas[rd_mask > 0] = (sat_canvas[rd_mask > 0] * 0.55 + np.array([140, 165, 180]) * 0.45).astype(np.uint8)
-
-for bld in campus.get("buildings", []):
-    style = get_building_style(bld.get("loc"))
-    draw_roof_3d(sat_canvas, bld, style, is_satellite=True)
-
-for fld in campus.get("fields", []):
-    f_pts = poly_to_map(fld["outer"])
-    draw_court_markings(sat_canvas, f_pts, fld.get("loc"), is_satellite=True)
-
-# Bold Campus Outer Boundary Line on Satellite Map
+# Bold Campus Outer Boundary Line on Satellite Map (White casing + Red line matching Legenda)
 cv2.polylines(sat_canvas, [boundary_pts], True, (255, 255, 255), 9, cv2.LINE_AA)
-cv2.polylines(sat_canvas, [boundary_pts], True, (25, 25, 25), 5, cv2.LINE_AA)
+cv2.polylines(sat_canvas, [boundary_pts], True, (35, 35, 230), 5, cv2.LINE_AA)
 
 # Crop sat_canvas horizontally to match Column 2 aspect ratio (0.814 -> 1221 x 1500)
 SAT_W = int(round(MH * 0.814))
